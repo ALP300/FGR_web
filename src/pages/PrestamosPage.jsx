@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Banknote, Eye, Calculator, Calendar, DollarSign } from 'lucide-react';
+import { Search, Banknote, Eye, Calculator, Calendar, DollarSign, User } from 'lucide-react';
 import { prestamosApi } from '../services/api';
 import DetallePrestamoModal from '../components/DetallePrestamoModal';
 
@@ -69,11 +69,11 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
               <tr>
                 <th>Préstamo #</th>
                 <th>Cliente Titular</th>
-                <th>Monto Desembolsado</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Monto Desembolsado</th>
                 <th>Modalidad / Tasa</th>
                 <th>Cuotas</th>
-                <th>Total Pagar</th>
-                <th>Saldo Pendiente</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Total Pagar</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Saldo Pendiente</th>
                 <th>Estado</th>
                 <th>Acción</th>
               </tr>
@@ -81,7 +81,7 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>Cargando préstamos...</td>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>Cargando préstamos de la API...</td>
                 </tr>
               ) : prestamos.length === 0 ? (
                 <tr>
@@ -90,31 +90,51 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                   </td>
                 </tr>
               ) : (
-                prestamos.map((p) => (
-                  <tr key={p.id}>
-                    <td><strong>Préstamo #{p.id}</strong></td>
-                    <td>{p.clienteNombre}</td>
-                    <td>S/. {parseFloat(p.montoDispersado).toFixed(2)}</td>
-                    <td>{p.modalidadPago} ({p.tasaInteres}%)</td>
-                    <td>{p.numeroCuotas} cuotas</td>
-                    <td style={{ color: 'var(--accent-gold)' }}>S/. {parseFloat(p.totalPagar).toFixed(2)}</td>
-                    <td style={{ color: p.saldoPendiente > 0 ? '#ef4444' : '#10b981', fontWeight: 600 }}>
-                      S/. {parseFloat(p.saldoPendiente).toFixed(2)}
-                    </td>
-                    <td>
-                      <span className={`badge badge-${p.estado?.toLowerCase()}`}>{p.estado}</span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleVerCronograma(p)}
-                      >
-                        <Eye size={14} />
-                        Cronograma
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                prestamos.map((p) => {
+                  const nombreCliente = p.nombreCliente || p.clienteNombre || (p.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Sin Nombre');
+                  const dniCliente = p.dniCliente || p.clienteDni || (p.cliente?.dni) || '';
+                  const totalPagar = p.totalAPagar !== undefined ? p.totalAPagar : (p.totalPagar !== undefined ? p.totalPagar : 0);
+                  const saldoPendiente = p.saldoPendienteTotal !== undefined ? p.saldoPendienteTotal : (p.saldoPendiente !== undefined ? p.saldoPendiente : 0);
+                  
+                  return (
+                    <tr key={p.id}>
+                      <td style={{ whiteSpace: 'nowrap' }}><strong>Préstamo #{p.id}</strong></td>
+                      <td>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{nombreCliente}</div>
+                        {dniCliente && (
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                            DNI: {dniCliente}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}>
+                        S/. {parseFloat(p.montoDispersado || 0).toFixed(2)}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {p.modalidadPago} ({p.tasaInteres}%)
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{p.numeroCuotas} cuotas</td>
+                      <td style={{ whiteSpace: 'nowrap', color: 'var(--accent-gold)', fontWeight: 600 }}>
+                        S/. {parseFloat(totalPagar).toFixed(2)}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap', color: saldoPendiente > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
+                        S/. {parseFloat(saldoPendiente).toFixed(2)}
+                      </td>
+                      <td>
+                        <span className={`badge badge-${p.estado?.toLowerCase()}`}>{p.estado}</span>
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleVerCronograma(p)}
+                        >
+                          <Eye size={14} />
+                          Cronograma
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

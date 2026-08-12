@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarClock, AlertTriangle, Clock, DollarSign, CheckCircle } from 'lucide-react';
+import { CalendarClock, AlertTriangle, Clock, DollarSign } from 'lucide-react';
 import { cuotasApi } from '../services/api';
 
 export default function CuotasCobranzaPage({ onCobrarCuota }) {
@@ -17,8 +17,8 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
     setLoading(true);
     try {
       const [vencidas, porVencer] = await Promise.all([
-        cuotasApi.getCuotasVencidas(),
-        cuotasApi.getCuotasPorVencer(diasFiltro)
+        cuotasApi.getCuotasVencidas().catch(() => []),
+        cuotasApi.getCuotasPorVencer(diasFiltro).catch(() => [])
       ]);
       setCuotasVencidas(vencidas || []);
       setCuotasPorVencer(porVencer || []);
@@ -83,10 +83,11 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
               <tr>
                 <th>N° Cuota</th>
                 <th>Préstamo #</th>
-                <th>Fecha Vencimiento</th>
-                <th>Monto a Cobrar</th>
-                <th>Capital</th>
-                <th>Interés</th>
+                <th>Cliente Titular</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Fecha Vencimiento</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Monto a Cobrar</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Capital</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Interés</th>
                 <th>Estado / Atraso</th>
                 <th>Acción</th>
               </tr>
@@ -94,41 +95,50 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Cargando información de cuotas...</td>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>Cargando información de cuotas...</td>
                 </tr>
               ) : currentList.length === 0 ? (
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                     No hay cuotas registradas en esta categoría.
                   </td>
                 </tr>
               ) : (
-                currentList.map((c) => (
-                  <tr key={c.id}>
-                    <td>Cuota #{c.numeroCuota}</td>
-                    <td><strong>Préstamo #{c.prestamoId}</strong></td>
-                    <td>{c.fechaVencimiento}</td>
-                    <td style={{ fontSize: '1rem', fontWeight: 700, color: tabActive === 'vencidas' ? '#ef4444' : '#10b981' }}>
-                      S/. {parseFloat(c.montoCuota).toFixed(2)}
-                    </td>
-                    <td>S/. {parseFloat(c.capital).toFixed(2)}</td>
-                    <td>S/. {parseFloat(c.interes).toFixed(2)}</td>
-                    <td>
-                      <span className={`badge badge-${c.estado?.toLowerCase()}`}>
-                        {c.diasAtraso > 0 ? `${c.diasAtraso} días atraso` : c.estado}
-                      </span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        onClick={() => onCobrarCuota(c)}
-                      >
-                        <DollarSign size={14} />
-                        Cobrar Cuota
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                currentList.map((c) => {
+                  const nombreCliente = c.nombreCliente || c.clienteNombre || '---';
+                  const dniCliente = c.dniCliente || c.clienteDni || '';
+                  const fechaFormat = c.fechaVencimiento?.split('T')[0] || c.fechaVencimiento;
+                  return (
+                    <tr key={c.id}>
+                      <td style={{ whiteSpace: 'nowrap' }}>Cuota #{c.numeroCuota}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}><strong>Préstamo #{c.prestamoId}</strong></td>
+                      <td>
+                        <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{nombreCliente}</div>
+                        {dniCliente && <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>DNI: {dniCliente}</div>}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{fechaFormat}</td>
+                      <td style={{ fontSize: '1rem', fontWeight: 700, color: tabActive === 'vencidas' ? '#dc2626' : '#059669', whiteSpace: 'nowrap' }}>
+                        S/. {parseFloat(c.montoCuota).toFixed(2)}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>S/. {parseFloat(c.capital || 0).toFixed(2)}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>S/. {parseFloat(c.interes || 0).toFixed(2)}</td>
+                      <td>
+                        <span className={`badge badge-${c.estado?.toLowerCase()}`}>
+                          {c.diasAtraso > 0 ? `${c.diasAtraso} días atraso` : c.estado}
+                        </span>
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-primary btn-sm"
+                          onClick={() => onCobrarCuota(c)}
+                        >
+                          <DollarSign size={14} />
+                          Cobrar Cuota
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

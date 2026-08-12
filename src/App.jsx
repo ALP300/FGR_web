@@ -13,6 +13,7 @@ import SimuladorModal from './components/SimuladorModal';
 import NuevoClienteModal from './components/NuevoClienteModal';
 import NuevoPrestamoModal from './components/NuevoPrestamoModal';
 import NuevoPagoModal from './components/NuevoPagoModal';
+import ConfirmLogoutModal from './components/ConfirmLogoutModal';
 
 import { MOCK_USER } from './services/mockData';
 
@@ -30,6 +31,7 @@ export default function App() {
   const [isNuevoClienteOpen, setIsNuevoClienteOpen] = useState(false);
   const [isNuevoPrestamoOpen, setIsNuevoPrestamoOpen] = useState(false);
   const [isNuevoPagoOpen, setIsNuevoPagoOpen] = useState(false);
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   // Datos para cobro / préstamo
   const [prestamoInitialData, setPrestamoInitialData] = useState(null);
@@ -44,6 +46,7 @@ export default function App() {
     localStorage.removeItem('fgr_token');
     localStorage.removeItem('fgr_user');
     setUser(null);
+    setIsLogoutModalOpen(false);
   };
 
   const handleCobrarCuota = (cuota) => {
@@ -87,7 +90,7 @@ export default function App() {
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         user={user}
-        onLogout={handleLogout}
+        onLogout={() => setIsLogoutModalOpen(true)}
         onOpenSimulador={() => setIsSimuladorOpen(true)}
         isOpen={isMobileOpen}
         onClose={() => setIsMobileOpen(false)}
@@ -171,6 +174,12 @@ export default function App() {
         isOpen={isNuevoPagoOpen}
         onClose={() => setIsNuevoPagoOpen(false)}
         initialCuota={cuotaInitialData}
+      />
+
+      <ConfirmLogoutModal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        onConfirm={handleLogout}
       />
     </div>
   );

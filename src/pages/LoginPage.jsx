@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Banknote, User, Lock, Mail, ShieldCheck, ArrowRight, Server } from 'lucide-react';
+import { Banknote, User, Lock, Mail, ShieldCheck, ArrowRight } from 'lucide-react';
 import { authApi } from '../services/api';
 
 export default function LoginPage({ onLoginSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
-  const [username, setUsername] = useState('admin_fgr');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   
   // Campos de registro
   const [email, setEmail] = useState('');
@@ -29,10 +29,11 @@ export default function LoginPage({ onLoginSuccess }) {
           nombresApellidos,
           rol
         });
-        alert(res?.mensaje || 'Usuario registrado exitosamente en la API. Ya puede iniciar sesión.');
+        alert(res?.mensaje || 'Usuario registrado exitosamente. Ya puede iniciar sesión.');
         setIsRegister(false);
+        setPassword('');
       } else {
-        // Petición real POST https://appprestamosback-oficial.onrender.com/api/Auth/login
+        // Petición real POST /api/Auth/login
         const data = await authApi.login(username, password);
         const userObj = data.user || {
           id: data.id,
@@ -45,7 +46,7 @@ export default function LoginPage({ onLoginSuccess }) {
       }
     } catch (err) {
       console.error('Error de autenticación API:', err);
-      const apiMsg = err.response?.data?.mensaje || err.response?.data?.title || 'No se pudo conectar con la API en Render o credenciales inválidas.';
+      const apiMsg = err.response?.data?.mensaje || err.response?.data?.title || 'Credenciales inválidas o error de conexión con el servidor.';
       setError(apiMsg);
     } finally {
       setLoading(false);
@@ -61,11 +62,6 @@ export default function LoginPage({ onLoginSuccess }) {
           </div>
           <h2 className="auth-title">FGR Préstamos</h2>
           <p className="auth-subtitle">Sistema de Gestión de Préstamos y Cobranzas</p>
-          
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', margin: '0.75rem auto 0 auto', padding: '4px 10px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '12px', fontSize: '0.73rem', color: '#10b981' }}>
-            <Server size={12} />
-            Backend Render: appprestamosback-oficial.onrender.com
-          </div>
         </div>
 
         {error && (
@@ -76,13 +72,13 @@ export default function LoginPage({ onLoginSuccess }) {
 
         <form onSubmit={handleSubmit}>
           <div className="field-group" style={{ marginBottom: '1rem' }}>
-            <label>Usuario (Username)</label>
+            <label>Usuario</label>
             <div className="input-group">
               <User size={16} />
               <input
                 type="text"
                 className="form-input"
-                placeholder="Nombre de usuario"
+                placeholder="Ingrese su usuario"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
                 required
@@ -108,7 +104,7 @@ export default function LoginPage({ onLoginSuccess }) {
               </div>
 
               <div className="field-group" style={{ marginBottom: '1rem' }}>
-                <label>Correo Electrónico (Email)</label>
+                <label>Correo Electrónico</label>
                 <div className="input-group">
                   <Mail size={16} />
                   <input
@@ -140,13 +136,13 @@ export default function LoginPage({ onLoginSuccess }) {
           )}
 
           <div className="field-group" style={{ marginBottom: '1.5rem' }}>
-            <label>Contraseña (Password)</label>
+            <label>Contraseña</label>
             <div className="input-group">
               <Lock size={16} />
               <input
                 type="password"
                 className="form-input"
-                placeholder="••••••••"
+                placeholder="Ingrese su contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -155,7 +151,7 @@ export default function LoginPage({ onLoginSuccess }) {
           </div>
 
           <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.85rem' }} disabled={loading}>
-            <span>{loading ? 'Conectando con Render...' : isRegister ? 'Registrar en API Render' : 'Ingresar al Sistema'}</span>
+            <span>{loading ? 'Ingresando...' : isRegister ? 'Registrar Usuario' : 'Ingresar al Sistema'}</span>
             <ArrowRight size={16} />
           </button>
         </form>
