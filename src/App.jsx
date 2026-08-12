@@ -14,7 +14,6 @@ import NuevoClienteModal from './components/NuevoClienteModal';
 import NuevoPrestamoModal from './components/NuevoPrestamoModal';
 import NuevoPagoModal from './components/NuevoPagoModal';
 
-import { API_CONFIG } from './services/api';
 import { MOCK_USER } from './services/mockData';
 
 export default function App() {
@@ -24,7 +23,6 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isMockMode, setIsMockMode] = useState(API_CONFIG.useMock);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
 
   // Modales
@@ -99,8 +97,6 @@ export default function App() {
         <TopHeader
           title={pageInfo.title}
           subtitle={pageInfo.subtitle}
-          isMockMode={isMockMode}
-          setIsMockMode={setIsMockMode}
           onNuevoCliente={() => setIsNuevoClienteOpen(true)}
           onNuevoPrestamo={() => {
             setPrestamoInitialData(null);

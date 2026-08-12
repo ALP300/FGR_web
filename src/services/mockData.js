@@ -1,4 +1,4 @@
-// Mock Data real para el Sistema de Gestión de Préstamos y Cobranzas FGR
+// Mock Data real alineada exactamente con los DTOs de C# (DashboardKpisDto, ClienteResponseDto, PrestamoResponseDto, etc.)
 
 export const MOCK_USER = {
   id: 1,
@@ -14,70 +14,68 @@ export const INITIAL_CLIENTES = [
     dni: "47859214",
     nombres: "Juan Carlos",
     apellidos: "Gómez Pérez",
+    nombreCompleto: "Juan Carlos Gómez Pérez",
     telefono: "987654321",
     direccion: "Av. Las Flores 452, San Juan de Lurigancho",
     fechaNacimiento: "1988-05-14",
     correo: "juancarlos.gomez@gmail.com",
     contactoEmergencia: "María Gómez - 987112233",
-    observaciones: "Cliente puntual con 3 préstamos liquidados previamente.",
+    observaciones: "Cliente puntual con préstamos previa y fielmente abonados.",
     estado: "Activo",
-    fechaRegistro: "2024-01-15"
+    fechaRegistro: "2024-01-15",
+    totalPrestamos: 3,
+    deudaTotal: 880.00
   },
   {
     id: 2,
     dni: "10458796",
     nombres: "Ana María",
     apellidos: "Torres Huamán",
+    nombreCompleto: "Ana María Torres Huamán",
     telefono: "955443322",
     direccion: "Jr. Los Olivos 128, Los Olivos",
     fechaNacimiento: "1992-11-20",
     correo: "ana.torres@hotmail.com",
     contactoEmergencia: "Pedro Torres - 912345678",
-    observaciones: "Negocio propio de abarrotes en mercado local.",
+    observaciones: "Negocio propio de bodega.",
     estado: "Activo",
-    fechaRegistro: "2024-02-10"
+    fechaRegistro: "2024-02-10",
+    totalPrestamos: 1,
+    deudaTotal: 5750.00
   },
   {
     id: 3,
     dni: "74125896",
     nombres: "Roberto",
     apellidos: "Castillo Ruiz",
+    nombreCompleto: "Roberto Castillo Ruiz",
     telefono: "912334455",
     direccion: "Calle San Martín 890, Surquillo",
     fechaNacimiento: "1985-03-08",
     correo: "rcastillo@empresa.pe",
     contactoEmergencia: "Lucía Castillo - 966554433",
-    observaciones: "Tiene 1 cuota atrasada. Se envió recordatorio de pago.",
+    observaciones: "Transporte independiente.",
     estado: "Activo",
-    fechaRegistro: "2024-03-01"
+    fechaRegistro: "2024-03-01",
+    totalPrestamos: 1,
+    deudaTotal: 2450.00
   },
   {
     id: 4,
     dni: "41526374",
     nombres: "Sofía Elena",
     apellidos: "Vargas Flores",
+    nombreCompleto: "Sofía Elena Vargas Flores",
     telefono: "944887766",
     direccion: "Av. Arequipa 2450, Lince",
     fechaNacimiento: "1995-09-30",
     correo: "sofia.vargas@outlook.com",
     contactoEmergencia: "Elena Flores - 933221100",
-    observaciones: "Préstamo cancelado a solicitud del cliente.",
+    observaciones: "Inactivo a solicitud del cliente.",
     estado: "Inactivo",
-    fechaRegistro: "2023-11-12"
-  },
-  {
-    id: 5,
-    dni: "78965412",
-    nombres: "Miguel Ángel",
-    apellidos: "Navarro Benítez",
-    telefono: "977112244",
-    direccion: "Urbanización El Sol Mz B Lote 4, Ate",
-    fechaNacimiento: "1980-07-04",
-    correo: "mnavarro@gmail.com",
-    contactoEmergencia: "Jorge Navarro - 999887766",
-    observaciones: "Transportista independiente. Pagos semanales.",
-    estado: "Activo",
-    fechaRegistro: "2024-04-05"
+    fechaRegistro: "2023-11-12",
+    totalPrestamos: 0,
+    deudaTotal: 0.00
   }
 ];
 
@@ -86,8 +84,10 @@ export const INITIAL_PRESTAMOS = [
     id: 101,
     clienteId: 1,
     clienteNombre: "Juan Carlos Gómez Pérez",
+    nombreCliente: "Juan Carlos Gómez Pérez",
+    dniCliente: "47859214",
     montoDispersado: 2000,
-    tasaInteres: 10, // 10%
+    tasaInteres: 10,
     tipoInteres: "Diario",
     modalidadPago: "Diario",
     numeroCuotas: 20,
@@ -103,6 +103,8 @@ export const INITIAL_PRESTAMOS = [
     id: 102,
     clienteId: 2,
     clienteNombre: "Ana María Torres Huamán",
+    nombreCliente: "Ana María Torres Huamán",
+    dniCliente: "10458796",
     montoDispersado: 5000,
     tasaInteres: 15,
     tipoInteres: "Mensual",
@@ -114,12 +116,14 @@ export const INITIAL_PRESTAMOS = [
     fechaDesembolso: "2026-08-01",
     fechaPrimerPago: "2026-08-15",
     estado: "Pendiente",
-    observaciones: "Aprobación pendiente de entrega de documentos."
+    observaciones: "Aprobación pendiente de documentación."
   },
   {
     id: 103,
     clienteId: 3,
     clienteNombre: "Roberto Castillo Ruiz",
+    nombreCliente: "Roberto Castillo Ruiz",
+    dniCliente: "74125896",
     montoDispersado: 3500,
     tasaInteres: 12,
     tipoInteres: "Diario",
@@ -131,126 +135,66 @@ export const INITIAL_PRESTAMOS = [
     fechaDesembolso: "2026-06-10",
     fechaPrimerPago: "2026-06-17",
     estado: "Vencido",
-    observaciones: "Presenta mora en la 4ta cuota."
-  },
-  {
-    id: 104,
-    clienteId: 5,
-    clienteNombre: "Miguel Ángel Navarro Benítez",
-    montoDispersado: 1500,
-    tasaInteres: 8,
-    tipoInteres: "Diario",
-    modalidadPago: "Diario",
-    numeroCuotas: 15,
-    montoCuota: 108,
-    totalPagar: 1620,
-    saldoPendiente: 0,
-    fechaDesembolso: "2026-05-01",
-    fechaPrimerPago: "2026-05-02",
-    estado: "Pagado",
-    observaciones: "Préstamo pagado en su totalidad a tiempo."
+    observaciones: "Presenta mora en cuota 4."
   }
 ];
 
 export const INITIAL_CUOTAS = [
-  // Cuotas Préstamo 101 (Juan Carlos - EnCurso)
   { id: 1001, prestamoId: 101, numeroCuota: 1, fechaVencimiento: "2026-07-21", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
   { id: 1002, prestamoId: 101, numeroCuota: 2, fechaVencimiento: "2026-07-22", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
   { id: 1003, prestamoId: 101, numeroCuota: 3, fechaVencimiento: "2026-07-23", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
-  { id: 1004, prestamoId: 101, numeroCuota: 4, fechaVencimiento: "2026-07-24", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
-  { id: 1005, prestamoId: 101, numeroCuota: 5, fechaVencimiento: "2026-07-25", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
-  { id: 1006, prestamoId: 101, numeroCuota: 6, fechaVencimiento: "2026-07-26", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
-  { id: 1007, prestamoId: 101, numeroCuota: 7, fechaVencimiento: "2026-07-27", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
-  { id: 1008, prestamoId: 101, numeroCuota: 8, fechaVencimiento: "2026-07-28", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
-  { id: 1009, prestamoId: 101, numeroCuota: 9, fechaVencimiento: "2026-07-29", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
-  { id: 1010, prestamoId: 101, numeroCuota: 10, fechaVencimiento: "2026-07-30", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
-  { id: 1011, prestamoId: 101, numeroCuota: 11, fechaVencimiento: "2026-07-31", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
-  { id: 1012, prestamoId: 101, numeroCuota: 12, fechaVencimiento: "2026-08-01", montoCuota: 110, capital: 100, interes: 10, estado: "Pagado", diasAtraso: 0 },
   { id: 1013, prestamoId: 101, numeroCuota: 13, fechaVencimiento: "2026-08-12", montoCuota: 110, capital: 100, interes: 10, estado: "Pendiente", diasAtraso: 0 },
-  { id: 1014, prestamoId: 101, numeroCuota: 14, fechaVencimiento: "2026-08-13", montoCuota: 110, capital: 100, interes: 10, estado: "Pendiente", diasAtraso: 0 },
-  { id: 1015, prestamoId: 101, numeroCuota: 15, fechaVencimiento: "2026-08-14", montoCuota: 110, capital: 100, interes: 10, estado: "Pendiente", diasAtraso: 0 },
-  
-  // Cuotas Préstamo 103 (Roberto Castillo - Vencido)
-  { id: 1031, prestamoId: 103, numeroCuota: 1, fechaVencimiento: "2026-06-17", montoCuota: 490, capital: 437.5, interes: 52.5, estado: "Pagado", diasAtraso: 0 },
-  { id: 1032, prestamoId: 103, numeroCuota: 2, fechaVencimiento: "2026-06-24", montoCuota: 490, capital: 437.5, interes: 52.5, estado: "Pagado", diasAtraso: 0 },
-  { id: 1033, prestamoId: 103, numeroCuota: 3, fechaVencimiento: "2026-07-01", montoCuota: 490, capital: 437.5, interes: 52.5, estado: "Pagado", diasAtraso: 0 },
-  { id: 1034, prestamoId: 103, numeroCuota: 4, fechaVencimiento: "2026-07-08", montoCuota: 490, capital: 437.5, interes: 52.5, estado: "Vencido", diasAtraso: 35 },
-  { id: 1035, prestamoId: 103, numeroCuota: 5, fechaVencimiento: "2026-07-15", montoCuota: 490, capital: 437.5, interes: 52.5, estado: "Vencido", diasAtraso: 28 },
-  { id: 1036, prestamoId: 103, numeroCuota: 6, fechaVencimiento: "2026-07-22", montoCuota: 490, capital: 437.5, interes: 52.5, estado: "Vencido", diasAtraso: 21 },
-  { id: 1037, prestamoId: 103, numeroCuota: 7, fechaVencimiento: "2026-07-29", montoCuota: 490, capital: 437.5, interes: 52.5, estado: "Vencido", diasAtraso: 14 },
-  { id: 1038, prestamoId: 103, numeroCuota: 8, fechaVencimiento: "2026-08-05", montoCuota: 490, capital: 437.5, interes: 52.5, estado: "Vencido", diasAtraso: 7 }
+  { id: 1034, prestamoId: 103, numeroCuota: 4, fechaVencimiento: "2026-07-08", montoCuota: 490, capital: 437.5, interes: 52.5, estado: "Vencido", diasAtraso: 35 }
 ];
 
 export const INITIAL_PAGOS = [
   {
     id: 501,
     prestamoId: 101,
-    cuotaId: 1012,
+    cuotaId: 1001,
     clienteId: 1,
     clienteNombre: "Juan Carlos Gómez Pérez",
+    nombreCliente: "Juan Carlos Gómez Pérez",
     monto: 110,
     metodoPago: "Efectivo",
     numeroOperacion: "REC-2026-0801",
     fechaPago: "2026-08-01 10:30:00",
     observaciones: "Pago presencial en ventanilla."
-  },
-  {
-    id: 502,
-    prestamoId: 101,
-    cuotaId: 1011,
-    clienteId: 1,
-    clienteNombre: "Juan Carlos Gómez Pérez",
-    monto: 110,
-    metodoPago: "Yape",
-    numeroOperacion: "YAP-887412",
-    fechaPago: "2026-07-31 16:45:00",
-    observaciones: "Transferencia Yape confirmada."
-  },
-  {
-    id: 503,
-    prestamoId: 103,
-    cuotaId: 1033,
-    clienteId: 3,
-    clienteNombre: "Roberto Castillo Ruiz",
-    monto: 490,
-    metodoPago: "Transferencia",
-    numeroOperacion: "BCP-00124875",
-    fechaPago: "2026-07-01 11:20:00",
-    observaciones: "Transferencia bancaria BCP."
   }
 ];
 
 export const DASHBOARD_KPIS = {
-  totalClientesActivos: 18,
-  totalPrestamosActivos: 12,
-  montoTotalDispersado: 45000.00,
-  montoTotalCobrado: 31200.00,
-  montoDineroPendiente: 13800.00,
-  interesesGenerados: 5400.00,
-  cuotasVencidasCount: 5,
-  montoEnMora: 2450.00
+  clientesActivos: 3,
+  dineroPrestado: 10500.00,
+  dineroRecuperado: 4500.00,
+  montoPorCobrar: 6000.00,
+  montoVencido: 490.00,
+  pagosDelDiaMonto: 110.00,
+  pagosDelDiaCantidad: 1
 };
 
 export const DASHBOARD_GRAFICOS = {
-  ingresosMensuales: [
-    { mes: "Mar", ingresos: 4200, meta: 4000 },
-    { mes: "Abr", ingresos: 5100, meta: 4500 },
-    { mes: "May", ingresos: 6300, meta: 5000 },
-    { mes: "Jun", ingresos: 5800, meta: 5500 },
-    { mes: "Jul", ingresos: 7200, meta: 6000 },
-    { mes: "Ago", ingresos: 2600, meta: 6500 }
+  prestamosPorMes: [
+    { mes: "Marzo", anio: 2026, monto: 4200 },
+    { mes: "Abril", anio: 2026, monto: 5100 },
+    { mes: "Mayo", anio: 2026, monto: 6300 },
+    { mes: "Junio", anio: 2026, monto: 5800 },
+    { mes: "Julio", anio: 2026, monto: 7200 },
+    { mes: "Agosto", anio: 2026, monto: 2600 }
+  ],
+  pagosPorMes: [
+    { mes: "Marzo", anio: 2026, monto: 3800 },
+    { mes: "Abril", anio: 2026, monto: 4900 },
+    { mes: "Mayo", anio: 2026, monto: 5900 },
+    { mes: "Junio", anio: 2026, monto: 5200 },
+    { mes: "Julio", anio: 2026, monto: 6800 },
+    { mes: "Agosto", anio: 2026, monto: 2100 }
   ],
   estadoPrestamos: [
-    { name: "En Curso", value: 12, color: "#10b981" },
-    { name: "Pendiente", value: 3, color: "#3b82f6" },
-    { name: "Pagado", value: 25, color: "#6366f1" },
-    { name: "Vencido", value: 4, color: "#ef4444" },
-    { name: "Cancelado", value: 2, color: "#6b7280" }
-  ],
-  modalidadDistribucion: [
-    { name: "Diario", porcentaje: 55 },
-    { name: "Semanal", porcentaje: 25 },
-    { name: "Quincenal", porcentaje: 12 },
-    { name: "Mensual", porcentaje: 8 }
+    { name: "En Curso", value: 12, color: "#059669" },
+    { name: "Pendiente", value: 3, color: "#2563eb" },
+    { name: "Pagado", value: 25, color: "#7c3aed" },
+    { name: "Vencido", value: 4, color: "#dc2626" },
+    { name: "Cancelado", value: 2, color: "#64748b" }
   ]
 };
