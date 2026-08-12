@@ -1,19 +1,17 @@
 import axios from 'axios';
 
-// URL base de la API backend configurada en .env o por defecto http://localhost:5000 (o la URL activa de ASP.NET Core)
-const API_BASE_URL = window.location.hostname === 'localhost' 
-  ? (import.meta.env.VITE_API_URL || 'http://localhost:5000') 
-  : '';
+// URL base de la API backend desplegada en Render (https://appprestamosback-oficial.onrender.com)
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://appprestamosback-oficial.onrender.com';
 
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 5000
+  timeout: 15000 // Aumentado a 15s para dar tiempo a Render si está despertando de reposo
 });
 
-// Interceptor para inyectar Token JWT
+// Interceptor para inyectar Token JWT en cada petición HTTP
 apiClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('fgr_token');

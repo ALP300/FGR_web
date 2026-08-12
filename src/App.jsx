@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Sidebar from './components/Sidebar';
 import TopHeader from './components/TopHeader';
 import DashboardPage from './pages/DashboardPage';
@@ -25,14 +25,15 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState('dashboard');
   const [isMockMode, setIsMockMode] = useState(API_CONFIG.useMock);
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
 
-  // Modals
+  // Modales
   const [isSimuladorOpen, setIsSimuladorOpen] = useState(false);
   const [isNuevoClienteOpen, setIsNuevoClienteOpen] = useState(false);
   const [isNuevoPrestamoOpen, setIsNuevoPrestamoOpen] = useState(false);
   const [isNuevoPagoOpen, setIsNuevoPagoOpen] = useState(false);
 
-  // Selected item for payment or loan flow
+  // Datos para cobro / préstamo
   const [prestamoInitialData, setPrestamoInitialData] = useState(null);
   const [cuotaInitialData, setCuotaInitialData] = useState(null);
 
@@ -90,6 +91,8 @@ export default function App() {
         user={user}
         onLogout={handleLogout}
         onOpenSimulador={() => setIsSimuladorOpen(true)}
+        isOpen={isMobileOpen}
+        onClose={() => setIsMobileOpen(false)}
       />
 
       <main className="main-content">
@@ -107,6 +110,7 @@ export default function App() {
             setCuotaInitialData(null);
             setIsNuevoPagoOpen(true);
           }}
+          onOpenMobileMenu={() => setIsMobileOpen(true)}
         />
 
         {activeTab === 'dashboard' && (
@@ -149,7 +153,7 @@ export default function App() {
         )}
       </main>
 
-      {/* Global Modals */}
+      {/* Modales Globales */}
       <SimuladorModal
         isOpen={isSimuladorOpen}
         onClose={() => setIsSimuladorOpen(false)}

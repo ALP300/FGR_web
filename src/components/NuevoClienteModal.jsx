@@ -27,12 +27,31 @@ export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) 
     }
     setError('');
     setLoading(true);
+
     try {
-      const nuevo = await clientesApi.createCliente(formData);
+      // Formatear payload exactamente según ClienteCreateDto de ASP.NET Core C#
+      const payload = {
+        dni: formData.dni.trim(),
+        nombres: formData.nombres.trim(),
+        apellidos: formData.apellidos.trim(),
+        telefono: formData.telefono ? formData.telefono.trim() : '',
+        direccion: formData.direccion ? formData.direccion.trim() : '',
+        fechaNacimiento: formData.fechaNacimiento ? new Date(formData.fechaNacimiento).toISOString() : null,
+        correo: formData.correo ? formData.correo.trim() : '',
+        contactoEmergencia: formData.contactoEmergencia ? formData.contactoEmergencia.trim() : '',
+        observaciones: formData.observaciones ? formData.observaciones.trim() : ''
+      };
+
+      const nuevo = await clientesApi.createCliente(payload);
       if (onClienteCreado) onClienteCreado(nuevo);
       onClose();
     } catch (err) {
-      setError('Error al registrar el cliente.');
+      console.error('Error al crear cliente:', err);
+      const apiMsg = err.response?.data?.mensaje 
+        || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(', ') : null)
+        || err.response?.data?.title 
+        || 'Error al registrar el cliente en el servidor.';
+      setError(apiMsg);
     } finally {
       setLoading(false);
     }
@@ -196,7 +215,7 @@ export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) 
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Registrando...' : 'Guardar Cliente'}
+              {loading ? 'Enviando a la API...' : 'Guardar Cliente'}
             </button>
           </div>
         </form>

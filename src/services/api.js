@@ -9,13 +9,11 @@ import {
   DASHBOARD_GRAFICOS
 } from './mockData';
 
-// Almacenamiento local en memoria para mantener cambios durante la sesión demo si no hay backend activo
 let memoryClientes = [...INITIAL_CLIENTES];
 let memoryPrestamos = [...INITIAL_PRESTAMOS];
 let memoryCuotas = [...INITIAL_CUOTAS];
 let memoryPagos = [...INITIAL_PAGOS];
 
-// Variable global para forzar o alternar entre Backend Real y Modo Mock
 export const API_CONFIG = {
   useMock: localStorage.getItem('fgr_use_mock') === 'true' || false,
   setUseMock: (val) => {
@@ -35,10 +33,10 @@ export const authApi = {
         }
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Auth/login, usando fallback mock.', err);
+        if (err.response) throw err;
+        console.warn('Backend API /api/Auth/login no disponible, usando fallback mock.', err);
       }
     }
-    // Fallback Mock
     const mockToken = "mock_jwt_token_fgr_" + Date.now();
     localStorage.setItem('fgr_token', mockToken);
     return { token: mockToken, user: MOCK_USER, message: "Inicio de sesión exitoso (Modo Demo)" };
@@ -50,7 +48,8 @@ export const authApi = {
         const res = await apiClient.post('/api/Auth/register', userData);
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Auth/register, usando fallback mock.', err);
+        if (err.response) throw err;
+        console.warn('Backend API /api/Auth/register no disponible, usando fallback mock.', err);
       }
     }
     return { message: "Usuario registrado correctamente en modo demo." };
@@ -62,7 +61,7 @@ export const authApi = {
         const res = await apiClient.get('/api/Auth/me');
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Auth/me, usando fallback mock.', err);
+        console.warn('Backend API /api/Auth/me no disponible, usando fallback mock.', err);
       }
     }
     return MOCK_USER;
@@ -74,19 +73,27 @@ export const clientesApi = {
   getClientes: async (busqueda = '', estado = '') => {
     if (!API_CONFIG.useMock) {
       try {
-        const res = await apiClient.get('/api/Clientes', { params: { busqueda, estado } });
+        const params = {};
+        if (busqueda && busqueda.trim() !== '') {
+          params.busqueda = busqueda.trim();
+        }
+        if (estado && estado.trim() !== '') {
+          params.estado = estado.trim();
+        }
+        const res = await apiClient.get('/api/Clientes', { params });
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Clientes, usando fallback mock.');
+        console.warn('Backend API /api/Clientes no disponible, usando fallback mock.', err);
       }
     }
     let list = [...memoryClientes];
     if (busqueda) {
       const q = busqueda.toLowerCase();
       list = list.filter(c => 
-        c.nombres.toLowerCase().includes(q) || 
-        c.apellidos.toLowerCase().includes(q) || 
-        c.dni.includes(q)
+        (c.nombres && c.nombres.toLowerCase().includes(q)) || 
+        (c.apellidos && c.apellidos.toLowerCase().includes(q)) || 
+        (c.nombreCompleto && c.nombreCompleto.toLowerCase().includes(q)) || 
+        (c.dni && c.dni.includes(q))
       );
     }
     if (estado) {
@@ -101,7 +108,7 @@ export const clientesApi = {
         const res = await apiClient.get(`/api/Clientes/${id}`);
         return res.data;
       } catch (err) {
-        console.warn(`API backend no disponible en /api/Clientes/${id}, usando fallback mock.`);
+        console.warn(`Backend API /api/Clientes/${id} no disponible, usando fallback mock.`);
       }
     }
     return memoryClientes.find(c => c.id === parseInt(id)) || null;
@@ -113,12 +120,14 @@ export const clientesApi = {
         const res = await apiClient.post('/api/Clientes', clienteData);
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en POST /api/Clientes, usando fallback mock.');
+        if (err.response) throw err;
+        console.warn('Backend API POST /api/Clientes offline, usando fallback mock.');
       }
     }
     const newCliente = {
       id: memoryClientes.length + 101,
       ...clienteData,
+      nombreCompleto: `${clienteData.nombres} ${clienteData.apellidos}`.trim(),
       estado: clienteData.estado || 'Activo',
       fechaRegistro: new Date().toISOString().split('T')[0]
     };
@@ -132,7 +141,8 @@ export const clientesApi = {
         const res = await apiClient.put(`/api/Clientes/${id}`, clienteData);
         return res.data;
       } catch (err) {
-        console.warn(`API backend no disponible en PUT /api/Clientes/${id}, usando fallback mock.`);
+        if (err.response) throw err;
+        console.warn(`Backend API PUT /api/Clientes/${id} no disponible, usando fallback mock.`);
       }
     }
     const idx = memoryClientes.findIndex(c => c.id === parseInt(id));
@@ -149,7 +159,7 @@ export const clientesApi = {
         const res = await apiClient.get(`/api/Clientes/${id}/historial`);
         return res.data;
       } catch (err) {
-        console.warn(`API backend no disponible en /api/Clientes/${id}/historial, usando fallback mock.`);
+        console.warn(`Backend API /api/Clientes/${id}/historial no disponible, usando fallback mock.`);
       }
     }
     const cid = parseInt(id);
@@ -164,7 +174,8 @@ export const clientesApi = {
         const res = await apiClient.patch(`/api/Clientes/${id}/estado`, null, { params: { nuevoEstado } });
         return res.data;
       } catch (err) {
-        console.warn(`API backend no disponible en PATCH /api/Clientes/${id}/estado, usando fallback mock.`);
+        if (err.response) throw err;
+        console.warn(`Backend API PATCH /api/Clientes/${id}/estado no disponible, usando fallback mock.`);
       }
     }
     const cliente = memoryClientes.find(c => c.id === parseInt(id));
@@ -184,7 +195,7 @@ export const prestamosApi = {
         const res = await apiClient.post('/api/Prestamos/simular', simData);
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Prestamos/simular, usando fallback mock.');
+        console.warn('Backend API /api/Prestamos/simular no disponible, usando fallback mock.');
       }
     }
     const { monto, tasaInteres, numeroCuotas, modalidadPago, fechaPrimerPago } = simData;
@@ -192,7 +203,6 @@ export const prestamosApi = {
     const totalPagar = parseFloat(monto) + interesTotal;
     const montoCuota = (totalPagar / parseInt(numeroCuotas)).toFixed(2);
     
-    // Generar cronograma simulado
     const cronograma = [];
     let fecha = new Date(fechaPrimerPago || Date.now());
     
@@ -206,7 +216,6 @@ export const prestamosApi = {
         estado: "Pendiente"
       });
       
-      // Incrementar según modalidad
       if (modalidadPago === 'Diario') fecha.setDate(fecha.getDate() + 1);
       else if (modalidadPago === 'Semanal') fecha.setDate(fecha.getDate() + 7);
       else if (modalidadPago === 'Quincenal') fecha.setDate(fecha.getDate() + 15);
@@ -227,10 +236,13 @@ export const prestamosApi = {
   getPrestamos: async (clienteId = null, estado = '') => {
     if (!API_CONFIG.useMock) {
       try {
-        const res = await apiClient.get('/api/Prestamos', { params: { clienteId, estado } });
+        const params = {};
+        if (clienteId) params.clienteId = clienteId;
+        if (estado && estado.trim() !== '') params.estado = estado.trim();
+        const res = await apiClient.get('/api/Prestamos', { params });
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Prestamos, usando fallback mock.');
+        console.warn('Backend API /api/Prestamos no disponible, usando fallback mock.');
       }
     }
     let list = [...memoryPrestamos];
@@ -249,7 +261,7 @@ export const prestamosApi = {
         const res = await apiClient.get(`/api/Prestamos/${id}`);
         return res.data;
       } catch (err) {
-        console.warn(`API backend no disponible en /api/Prestamos/${id}, usando fallback mock.`);
+        console.warn(`Backend API /api/Prestamos/${id} no disponible, usando fallback mock.`);
       }
     }
     return memoryPrestamos.find(p => p.id === parseInt(id)) || null;
@@ -261,7 +273,8 @@ export const prestamosApi = {
         const res = await apiClient.post('/api/Prestamos', prestamoData);
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en POST /api/Prestamos, usando fallback mock.');
+        if (err.response) throw err;
+        console.warn('Backend API POST /api/Prestamos no disponible, usando fallback mock.');
       }
     }
     const cliente = memoryClientes.find(c => c.id === parseInt(prestamoData.clienteId));
@@ -277,7 +290,7 @@ export const prestamosApi = {
     const newPrestamo = {
       id: newId,
       clienteId: parseInt(prestamoData.clienteId),
-      clienteNombre: cliente ? `${cliente.nombres} ${cliente.apellidos}` : 'Cliente #' + prestamoData.clienteId,
+      clienteNombre: cliente ? (cliente.nombreCompleto || `${cliente.nombres} ${cliente.apellidos}`) : 'Cliente #' + prestamoData.clienteId,
       montoDispersado: parseFloat(prestamoData.montoDispersado),
       tasaInteres: parseFloat(prestamoData.tasaInteres),
       tipoInteres: prestamoData.tipoInteres || 'Diario',
@@ -292,7 +305,6 @@ export const prestamosApi = {
       observaciones: prestamoData.observaciones || ''
     };
 
-    // Crear cuotas correspondientes
     sim.cronograma.forEach((c, idx) => {
       memoryCuotas.push({
         id: newId * 100 + (idx + 1),
@@ -317,7 +329,8 @@ export const prestamosApi = {
         const res = await apiClient.patch(`/api/Prestamos/${id}/cancelar`);
         return res.data;
       } catch (err) {
-        console.warn(`API backend no disponible en PATCH /api/Prestamos/${id}/cancelar, usando fallback mock.`);
+        if (err.response) throw err;
+        console.warn(`Backend API PATCH /api/Prestamos/${id}/cancelar no disponible, usando fallback mock.`);
       }
     }
     const prestamo = memoryPrestamos.find(p => p.id === parseInt(id));
@@ -337,7 +350,7 @@ export const cuotasApi = {
         const res = await apiClient.get(`/api/Cuotas/prestamo/${prestamoId}`);
         return res.data;
       } catch (err) {
-        console.warn(`API backend no disponible en /api/Cuotas/prestamo/${prestamoId}, usando fallback mock.`);
+        console.warn(`Backend API /api/Cuotas/prestamo/${prestamoId} no disponible, usando fallback mock.`);
       }
     }
     return memoryCuotas.filter(c => c.prestamoId === parseInt(prestamoId));
@@ -349,7 +362,7 @@ export const cuotasApi = {
         const res = await apiClient.get('/api/Cuotas/vencidas');
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Cuotas/vencidas, usando fallback mock.');
+        console.warn('Backend API /api/Cuotas/vencidas no disponible, usando fallback mock.');
       }
     }
     return memoryCuotas.filter(c => c.estado === 'Vencido');
@@ -361,7 +374,7 @@ export const cuotasApi = {
         const res = await apiClient.get('/api/Cuotas/por-vencer', { params: { dias } });
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Cuotas/por-vencer, usando fallback mock.');
+        console.warn('Backend API /api/Cuotas/por-vencer no disponible, usando fallback mock.');
       }
     }
     return memoryCuotas.filter(c => c.estado === 'Pendiente');
@@ -376,7 +389,8 @@ export const pagosApi = {
         const res = await apiClient.post('/api/Pagos', pagoData);
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en POST /api/Pagos, usando fallback mock.');
+        if (err.response) throw err;
+        console.warn('Backend API POST /api/Pagos no disponible, usando fallback mock.');
       }
     }
     const prestamo = memoryPrestamos.find(p => p.id === parseInt(pagoData.prestamoId));
@@ -398,7 +412,7 @@ export const pagosApi = {
       prestamoId: parseInt(pagoData.prestamoId),
       cuotaId: parseInt(pagoData.cuotaId),
       clienteId: prestamo ? prestamo.clienteId : 1,
-      clienteNombre: prestamo ? prestamo.clienteNombre : 'Cliente Generico',
+      clienteNombre: prestamo ? (prestamo.clienteNombre || prestamo.nombreCliente) : 'Cliente Generico',
       monto: parseFloat(pagoData.monto),
       metodoPago: pagoData.metodoPago || 'Efectivo',
       numeroOperacion: pagoData.numeroOperacion || `REC-${Date.now().toString().slice(-6)}`,
@@ -413,10 +427,13 @@ export const pagosApi = {
   getPagos: async (prestamoId = null, clienteId = null) => {
     if (!API_CONFIG.useMock) {
       try {
-        const res = await apiClient.get('/api/Pagos', { params: { prestamoId, clienteId } });
+        const params = {};
+        if (prestamoId) params.prestamoId = prestamoId;
+        if (clienteId) params.clienteId = clienteId;
+        const res = await apiClient.get('/api/Pagos', { params });
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Pagos, usando fallback mock.');
+        console.warn('Backend API /api/Pagos no disponible, usando fallback mock.');
       }
     }
     let list = [...memoryPagos];
@@ -435,7 +452,7 @@ export const pagosApi = {
         const res = await apiClient.get(`/api/Pagos/${id}`);
         return res.data;
       } catch (err) {
-        console.warn(`API backend no disponible en /api/Pagos/${id}, usando fallback mock.`);
+        console.warn(`Backend API /api/Pagos/${id} no disponible, usando fallback mock.`);
       }
     }
     return memoryPagos.find(p => p.id === parseInt(id)) || null;
@@ -450,10 +467,9 @@ export const dashboardApi = {
         const res = await apiClient.get('/api/Dashboard/kpis');
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Dashboard/kpis, usando fallback mock.');
+        console.warn('Backend API /api/Dashboard/kpis no disponible, usando fallback mock.');
       }
     }
-    // Calcular métricas dinámicas basadas en memoria
     const totalClientesActivos = memoryClientes.filter(c => c.estado === 'Activo').length;
     const totalPrestamosActivos = memoryPrestamos.filter(p => p.estado === 'EnCurso').length;
     const montoTotalDispersado = memoryPrestamos.reduce((sum, p) => sum + p.montoDispersado, 0);
@@ -478,7 +494,7 @@ export const dashboardApi = {
         const res = await apiClient.get('/api/Dashboard/graficos');
         return res.data;
       } catch (err) {
-        console.warn('API backend no disponible en /api/Dashboard/graficos, usando fallback mock.');
+        console.warn('Backend API /api/Dashboard/graficos no disponible, usando fallback mock.');
       }
     }
     return DASHBOARD_GRAFICOS;
@@ -488,12 +504,11 @@ export const dashboardApi = {
 // --- REPORTES API ---
 export const reportesApi = {
   getDownloadUrl: (endpoint) => {
-    const baseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://appprestamosback-oficial.onrender.com';
     return `${baseUrl}/api/Reportes/${endpoint}`;
   },
   
   exportarSimulado: (nombreArchivo, datosJson) => {
-    // Generador CSV en frontend como fallback para descarga inmediata
     if (!datosJson || datosJson.length === 0) return;
     const headers = Object.keys(datosJson[0]).join(',');
     const rows = datosJson.map(obj => Object.values(obj).map(v => `"${v}"`).join(','));

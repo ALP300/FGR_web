@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Banknote, User, Lock, Mail, ShieldCheck, ArrowRight } from 'lucide-react';
+import { Banknote, User, Lock, Mail, ShieldCheck, ArrowRight, Server } from 'lucide-react';
 import { authApi } from '../services/api';
 
 export default function LoginPage({ onLoginSuccess }) {
@@ -7,7 +7,7 @@ export default function LoginPage({ onLoginSuccess }) {
   const [username, setUsername] = useState('admin_fgr');
   const [password, setPassword] = useState('admin123');
   
-  // Register fields
+  // Campos de registro
   const [email, setEmail] = useState('');
   const [nombresApellidos, setNombresApellidos] = useState('');
   const [rol, setRol] = useState('Admin');
@@ -22,21 +22,31 @@ export default function LoginPage({ onLoginSuccess }) {
 
     try {
       if (isRegister) {
-        await authApi.register({
+        const res = await authApi.register({
           nombreUsuario: username,
           email,
           password,
           nombresApellidos,
           rol
         });
-        alert('Usuario registrado exitosamente. Ya puede iniciar sesión.');
+        alert(res?.mensaje || 'Usuario registrado exitosamente en la API. Ya puede iniciar sesión.');
         setIsRegister(false);
       } else {
+        // Petición real POST https://appprestamosback-oficial.onrender.com/api/Auth/login
         const data = await authApi.login(username, password);
-        onLoginSuccess(data.user || { nombreUsuario: username, rol: 'Admin', nombresApellidos: username });
+        const userObj = data.user || {
+          id: data.id,
+          nombreUsuario: data.nombreUsuario || username,
+          nombresApellidos: data.nombreCompleto || data.nombresApellidos || username,
+          email: data.email,
+          rol: data.rol || 'Admin'
+        };
+        onLoginSuccess(userObj);
       }
     } catch (err) {
-      setError('Credenciales inválidas o error de conexión con la API.');
+      console.error('Error de autenticación API:', err);
+      const apiMsg = err.response?.data?.mensaje || err.response?.data?.title || 'No se pudo conectar con la API en Render o credenciales inválidas.';
+      setError(apiMsg);
     } finally {
       setLoading(false);
     }
@@ -51,6 +61,11 @@ export default function LoginPage({ onLoginSuccess }) {
           </div>
           <h2 className="auth-title">FGR Préstamos</h2>
           <p className="auth-subtitle">Sistema de Gestión de Préstamos y Cobranzas</p>
+          
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', margin: '0.75rem auto 0 auto', padding: '4px 10px', background: 'rgba(16, 185, 129, 0.12)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '12px', fontSize: '0.73rem', color: '#10b981' }}>
+            <Server size={12} />
+            Backend Render: appprestamosback-oficial.onrender.com
+          </div>
         </div>
 
         {error && (
@@ -61,7 +76,7 @@ export default function LoginPage({ onLoginSuccess }) {
 
         <form onSubmit={handleSubmit}>
           <div className="field-group" style={{ marginBottom: '1rem' }}>
-            <label>Usuario</label>
+            <label>Usuario (Username)</label>
             <div className="input-group">
               <User size={16} />
               <input
@@ -93,7 +108,7 @@ export default function LoginPage({ onLoginSuccess }) {
               </div>
 
               <div className="field-group" style={{ marginBottom: '1rem' }}>
-                <label>Correo Electrónico</label>
+                <label>Correo Electrónico (Email)</label>
                 <div className="input-group">
                   <Mail size={16} />
                   <input
@@ -125,7 +140,7 @@ export default function LoginPage({ onLoginSuccess }) {
           )}
 
           <div className="field-group" style={{ marginBottom: '1.5rem' }}>
-            <label>Contraseña</label>
+            <label>Contraseña (Password)</label>
             <div className="input-group">
               <Lock size={16} />
               <input
@@ -140,7 +155,7 @@ export default function LoginPage({ onLoginSuccess }) {
           </div>
 
           <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.85rem' }} disabled={loading}>
-            <span>{loading ? 'Cargando...' : isRegister ? 'Registrar Usuario' : 'Ingresar al Sistema'}</span>
+            <span>{loading ? 'Conectando con Render...' : isRegister ? 'Registrar en API Render' : 'Ingresar al Sistema'}</span>
             <ArrowRight size={16} />
           </button>
         </form>

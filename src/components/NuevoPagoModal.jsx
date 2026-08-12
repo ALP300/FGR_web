@@ -72,12 +72,27 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
     }
     setError('');
     setLoading(true);
+
     try {
-      const pago = await pagosApi.createPago(formData);
+      const payload = {
+        prestamoId: parseInt(formData.prestamoId),
+        cuotaId: formData.cuotaId ? parseInt(formData.cuotaId) : null,
+        monto: parseFloat(formData.monto),
+        metodoPago: formData.metodoPago || 'Efectivo',
+        numeroOperacion: formData.numeroOperacion ? formData.numeroOperacion.trim() : `REC-${Date.now().toString().slice(-6)}`,
+        observaciones: formData.observaciones ? formData.observaciones.trim() : ''
+      };
+
+      const pago = await pagosApi.createPago(payload);
       if (onPagoRegistrado) onPagoRegistrado(pago);
       onClose();
     } catch (err) {
-      setError('Error al registrar el cobro de la cuota.');
+      console.error('Error al registrar pago:', err);
+      const apiMsg = err.response?.data?.mensaje 
+        || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(', ') : null)
+        || err.response?.data?.title 
+        || 'Error al registrar el cobro en el servidor.';
+      setError(apiMsg);
     } finally {
       setLoading(false);
     }
@@ -119,7 +134,7 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
                 <option value="">-- Seleccionar Préstamo --</option>
                 {prestamos.map(p => (
                   <option key={p.id} value={p.id}>
-                    Préstamo #{p.id} - {p.clienteNombre} (Saldo: S/. {p.saldoPendiente})
+                    Préstamo #{p.id} - {p.clienteNombre || p.nombreCliente} (Saldo: S/. {p.saldoPendiente})
                   </option>
                 ))}
               </select>
@@ -144,7 +159,7 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
                 <option value="">-- Seleccionar Cuota Pendiente --</option>
                 {cuotas.map(c => (
                   <option key={c.id} value={c.id}>
-                    Cuota #{c.numeroCuota} (Vence: {c.fechaVencimiento}) - S/. {c.montoCuota} [{c.estado}]
+                    Cuota #{c.numeroCuota} (Vence: {c.fechaVencimiento?.split('T')[0] || c.fechaVencimiento}) - S/. {c.montoCuota} [{c.estado}]
                   </option>
                 ))}
               </select>

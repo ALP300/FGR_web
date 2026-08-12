@@ -21,7 +21,7 @@ export default function ClientesPage({ onNuevoCliente }) {
       const data = await clientesApi.getClientes(busqueda, estadoFiltro);
       setClientes(data || []);
     } catch (err) {
-      console.error(err);
+      console.error('Error al cargar clientes:', err);
     } finally {
       setLoading(false);
     }
@@ -83,7 +83,7 @@ export default function ClientesPage({ onNuevoCliente }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>Cargando clientes...</td>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>Cargando clientes de la API...</td>
                 </tr>
               ) : clientes.length === 0 ? (
                 <tr>
@@ -92,37 +92,40 @@ export default function ClientesPage({ onNuevoCliente }) {
                   </td>
                 </tr>
               ) : (
-                clientes.map((c) => (
-                  <tr key={c.id}>
-                    <td><strong>{c.dni}</strong></td>
-                    <td>{c.nombres} {c.apellidos}</td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Phone size={13} className="text-muted" />
-                        {c.telefono || '---'}
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        <MapPin size={13} className="text-muted" />
-                        {c.direccion || '---'}
-                      </div>
-                    </td>
-                    <td>{c.correo || '---'}</td>
-                    <td>
-                      <span className={`badge badge-${c.estado?.toLowerCase()}`}>{c.estado}</span>
-                    </td>
-                    <td>
-                      <button
-                        className="btn btn-secondary btn-sm"
-                        onClick={() => handleVerDetalle(c)}
-                      >
-                        <Eye size={14} />
-                        Expediente
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                clientes.map((c) => {
+                  const nombreMostrar = c.nombreCompleto || `${c.nombres || ''} ${c.apellidos || ''}`.trim() || '---';
+                  return (
+                    <tr key={c.id}>
+                      <td><strong>{c.dni}</strong></td>
+                      <td>{nombreMostrar}</td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Phone size={13} className="text-muted" />
+                          {c.telefono || '---'}
+                        </div>
+                      </td>
+                      <td>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <MapPin size={13} className="text-muted" />
+                          {c.direccion || '---'}
+                        </div>
+                      </td>
+                      <td>{c.correo || '---'}</td>
+                      <td>
+                        <span className={`badge badge-${c.estado?.toLowerCase()}`}>{c.estado}</span>
+                      </td>
+                      <td>
+                        <button
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => handleVerDetalle(c)}
+                        >
+                          <Eye size={14} />
+                          Expediente
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>

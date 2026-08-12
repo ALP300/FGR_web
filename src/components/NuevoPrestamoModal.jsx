@@ -49,12 +49,30 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
     }
     setError('');
     setLoading(true);
+
     try {
-      const nuevo = await prestamosApi.createPrestamo(formData);
+      const payload = {
+        clienteId: parseInt(formData.clienteId),
+        montoDispersado: parseFloat(formData.montoDispersado),
+        tasaInteres: parseFloat(formData.tasaInteres),
+        tipoInteres: formData.tipoInteres || 'Diario',
+        modalidadPago: formData.modalidadPago || 'Diario',
+        numeroCuotas: parseInt(formData.numeroCuotas),
+        fechaDesembolso: formData.fechaDesembolso ? new Date(formData.fechaDesembolso).toISOString() : new Date().toISOString(),
+        fechaPrimerPago: formData.fechaPrimerPago ? new Date(formData.fechaPrimerPago).toISOString() : new Date().toISOString(),
+        observaciones: formData.observaciones ? formData.observaciones.trim() : ''
+      };
+
+      const nuevo = await prestamosApi.createPrestamo(payload);
       if (onPrestamoCreado) onPrestamoCreado(nuevo);
       onClose();
     } catch (err) {
-      setError('Error al registrar el préstamo.');
+      console.error('Error al desembolsar préstamo:', err);
+      const apiMsg = err.response?.data?.mensaje 
+        || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(', ') : null)
+        || err.response?.data?.title 
+        || 'Error al registrar el préstamo en el servidor.';
+      setError(apiMsg);
     } finally {
       setLoading(false);
     }
@@ -94,7 +112,7 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
                   <option value="">-- Seleccione Cliente --</option>
                   {clientes.map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.nombres} {c.apellidos} (DNI: {c.dni})
+                      {c.nombres || c.nombreCompleto} {c.apellidos || ''} (DNI: {c.dni})
                     </option>
                   ))}
                 </select>
