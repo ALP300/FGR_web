@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   FileSpreadsheet, 
   FileText, 
@@ -8,107 +8,163 @@ import {
   Receipt, 
   AlertTriangle, 
   TrendingUp, 
-  PieChart 
+  Wallet, 
+  History,
+  CheckCircle2
 } from 'lucide-react';
-import { reportesApi, clientesApi, prestamosApi, pagosApi, cuotasApi } from '../services/api';
+import { reportesApi, clientesApi, prestamosApi, pagosApi, cuotasApi, cajaApi, auditoriaApi } from '../services/api';
+import ToastNotification from '../components/ToastNotification';
 
 export default function ReportesPage() {
+  const [downloading, setDownloading] = useState('');
+  const [notification, setNotification] = useState(null);
+
   const handleExport = async (tipo, formato) => {
+    setDownloading(tipo);
     try {
       let data = [];
       let filename = `Reporte_${tipo}`;
 
       if (tipo === 'clientes') {
         data = await clientesApi.getClientes();
-        filename = 'Reporte_Clientes_FGR';
+        filename = 'Reporte_Clientes_Scoring_FGR';
       } else if (tipo === 'prestamos') {
         data = await prestamosApi.getPrestamos();
-        filename = 'Reporte_Prestamos_FGR';
+        filename = 'Reporte_Prestamos_General_FGR';
       } else if (tipo === 'pagos') {
         data = await pagosApi.getPagos();
-        filename = 'Reporte_Pagos_FGR';
+        filename = 'Reporte_Transacciones_Pagos_FGR';
       } else if (tipo === 'cuotas-vencidas') {
         data = await cuotasApi.getCuotasVencidas();
-        filename = 'Reporte_Cuotas_Vencidas_FGR';
+        filename = 'Reporte_Cartera_Vencida_Mora_FGR';
       } else if (tipo === 'cuotas-por-vencer') {
         data = await cuotasApi.getCuotasPorVencer(7);
-        filename = 'Reporte_Cuotas_Por_Vencer_FGR';
+        filename = 'Reporte_Cronograma_Cobros_7Dias_FGR';
+      } else if (tipo === 'caja') {
+        data = await cajaApi.getMovimientos();
+        filename = 'Reporte_Movimientos_Caja_Diaria_FGR';
+      } else if (tipo === 'auditoria') {
+        data = await auditoriaApi.getLogs();
+        filename = 'Reporte_Trazabilidad_Auditoria_FGR';
       }
 
-      reportesApi.exportarSimulado(filename, data);
+      if (!data || data.length === 0) {
+        setNotification({ type: 'warning', message: 'No se encontraron registros para exportar en esta categoría.' });
+        return;
+      }
+
+      if (formato === 'pdf') {
+        window.print();
+        setNotification({ type: 'success', message: 'Vista previa de impresión generada.' });
+      } else {
+        reportesApi.exportarSimulado(filename, data);
+        setNotification({ type: 'success', message: `Reporte "${filename}" descargado con éxito.` });
+      }
     } catch (err) {
-      alert('Error generando reporte.');
+      console.error(err);
+      setNotification({ type: 'error', message: 'Ocurrió un error al generar el reporte solicitado.' });
+    } finally {
+      setDownloading('');
     }
   };
 
   const reportesConfig = [
     {
+      id: 'cuotas-vencidas',
+      title: 'Cartera Vencida & Antigüedad de Mora',
+      desc: 'Detalle de cuotas impagas, días de atraso, interés moratorio y clientes en riesgo.',
+      icon: AlertTriangle,
+      color: '#dc2626',
+      badge: 'Prioridad Crítica'
+    },
+    {
+      id: 'caja',
+      title: 'Arqueo & Flujo de Caja Diaria',
+      desc: 'Historial de aperturas, cierres, cobros en efectivo, cobros digitales y egresos operativos.',
+      icon: Wallet,
+      color: '#059669',
+      badge: 'Control Financiero'
+    },
+    {
       id: 'clientes',
-      title: 'Reporte Consolidado de Clientes',
-      desc: 'Exportación de padrón con DNI, contacto, historial y estado crediticio.',
+      title: 'Padrón de Clientes & Calificación (Scoring)',
+      desc: 'Exportación completa con DNI, teléfonos, historial de crédito, score y límites asignados.',
       icon: Users,
-      color: '#3b82f6'
+      color: '#2563eb'
     },
     {
       id: 'prestamos',
-      title: 'Reporte General de Préstamos',
-      desc: 'Consolidado de capital entregado, cuotas, tasas e intereses proyectados.',
+      title: 'Consolidado General de Préstamos',
+      desc: 'Capital dispersado, tasas de interés, número de cuotas, saldo deudor y rentabilidad.',
       icon: Banknote,
       color: '#10b981'
     },
     {
       id: 'pagos',
-      title: 'Historial Transaccional de Pagos',
-      desc: 'Detalle de caja, transferencias, Yape/Plin con números de operación.',
+      title: 'Historial Transaccional de Pagos & Recibos',
+      desc: 'Detalle de ingresos por ventanilla, Yape, Plin y transferencias con números de voucher.',
       icon: Receipt,
-      color: '#8b5cf6'
-    },
-    {
-      id: 'cuotas-vencidas',
-      title: 'Reporte de Cuotas Vencidas & Mora',
-      desc: 'Detalle de atrasos, días en mora y saldo vencido pendiente.',
-      icon: AlertTriangle,
-      color: '#ef4444'
+      color: '#7c3aed'
     },
     {
       id: 'cuotas-por-vencer',
-      title: 'Cronograma Próximo de Cobros',
-      desc: 'Proyección de cobros a realizar en los próximos 7 días.',
+      title: 'Proyección de Cobranza (Próximos 7 Días)',
+      desc: 'Cronograma detallado de cuotas que vencen próximamente para optimizar rutas de cobro.',
       icon: TrendingUp,
-      color: '#f59e0b'
+      color: '#d97706'
+    },
+    {
+      id: 'auditoria',
+      title: 'Registro de Auditoría & Trazabilidad',
+      desc: 'Historial de todas las operaciones realizadas por los operadores para control interno.',
+      icon: History,
+      color: '#475569'
     }
   ];
 
   return (
     <div className="content-body">
+      <ToastNotification 
+        notification={notification} 
+        onClose={() => setNotification(null)} 
+      />
+
       <div className="card-panel">
         <div className="panel-header">
           <div className="panel-title">
             <FileSpreadsheet className="text-primary" size={22} />
-            Centro de Reportes y Exportación de Datos
+            Centro de Reportes & Exportación de Datos
           </div>
         </div>
 
         <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-          Genere descargas instantáneas en formatos Excel, CSV o PDF para análisis contable, auditoría y control de cartera.
+          Genere descargas instantáneas en formatos Excel (.xlsx), CSV o PDF para análisis contable, auditoría y control de cartera.
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
           {reportesConfig.map((rep) => {
             const Icon = rep.icon;
+            const isExp = downloading === rep.id;
             return (
               <div 
                 key={rep.id} 
                 className="kpi-card" 
-                style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '1rem', padding: '1.5rem' }}
+                style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '1rem', padding: '1.4rem' }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-                  <div className="kpi-icon" style={{ background: `${rep.color}20`, color: rep.color }}>
-                    <Icon size={24} />
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                    <div className="kpi-icon" style={{ background: `${rep.color}15`, color: rep.color }}>
+                      <Icon size={24} />
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-main)' }}>{rep.title}</h3>
+                    </div>
                   </div>
-                  <div>
-                    <h3 style={{ fontSize: '1.05rem', fontWeight: 700 }}>{rep.title}</h3>
-                  </div>
+                  {rep.badge && (
+                    <span className="badge" style={{ fontSize: '0.7rem', background: `${rep.color}15`, color: rep.color, borderColor: 'transparent' }}>
+                      {rep.badge}
+                    </span>
+                  )}
                 </div>
 
                 <p style={{ fontSize: '0.83rem', color: 'var(--text-muted)' }}>
@@ -120,27 +176,30 @@ export default function ReportesPage() {
                     className="btn btn-secondary btn-sm" 
                     style={{ flex: 1 }}
                     onClick={() => handleExport(rep.id, 'excel')}
+                    disabled={isExp}
                   >
-                    <FileSpreadsheet size={14} style={{ color: '#10b981' }} />
-                    Excel (.xlsx)
+                    <FileSpreadsheet size={14} style={{ color: '#059669' }} />
+                    {isExp ? '...' : 'Excel'}
                   </button>
 
                   <button 
                     className="btn btn-secondary btn-sm" 
                     style={{ flex: 1 }}
                     onClick={() => handleExport(rep.id, 'csv')}
+                    disabled={isExp}
                   >
-                    <Download size={14} style={{ color: '#3b82f6' }} />
-                    CSV
+                    <Download size={14} style={{ color: '#2563eb' }} />
+                    {isExp ? '...' : 'CSV'}
                   </button>
 
                   <button 
                     className="btn btn-secondary btn-sm" 
                     style={{ flex: 1 }}
                     onClick={() => handleExport(rep.id, 'pdf')}
+                    disabled={isExp}
                   >
-                    <FileText size={14} style={{ color: '#ef4444' }} />
-                    PDF
+                    <FileText size={14} style={{ color: '#dc2626' }} />
+                    {isExp ? '...' : 'PDF'}
                   </button>
                 </div>
               </div>

@@ -1,18 +1,35 @@
-import React, { useState, useEffect } from 'react';
-import { Search, Banknote, Eye, Calculator, Calendar, DollarSign, User } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Search, Banknote, Eye, Calculator, Calendar, DollarSign, RefreshCw } from 'lucide-react';
 import { prestamosApi } from '../services/api';
 import DetallePrestamoModal from '../components/DetallePrestamoModal';
 
-export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobrarCuota }) {
+export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobrarCuota, onRefinanciar, highlightPrestamoId }) {
   const [prestamos, setPrestamos] = useState([]);
   const [estadoFiltro, setEstadoFiltro] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedPrestamo, setSelectedPrestamo] = useState(null);
   const [isDetalleOpen, setIsDetalleOpen] = useState(false);
+  const [activeHighlight, setActiveHighlight] = useState(null);
+  const highlightTimer = useRef(null);
 
   useEffect(() => {
     loadPrestamos();
   }, [estadoFiltro]);
+
+  useEffect(() => {
+    if (highlightPrestamoId && !loading && prestamos.length > 0) {
+      setActiveHighlight(highlightPrestamoId);
+      setTimeout(() => {
+        const el = document.getElementById(`prestamo-row-${highlightPrestamoId}`);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 150);
+      if (highlightTimer.current) clearTimeout(highlightTimer.current);
+      highlightTimer.current = setTimeout(() => setActiveHighlight(null), 6000);
+    }
+    return () => { if (highlightTimer.current) clearTimeout(highlightTimer.current); };
+  }, [highlightPrestamoId, loading, prestamos]);
 
   const loadPrestamos = async () => {
     setLoading(true);
@@ -34,7 +51,7 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
   return (
     <div className="content-body">
       <div className="card-panel">
-        <div className="panel-header">
+        <div className="panel-header" style={{ flexWrap: 'wrap', gap: '1rem' }}>
           <div className="panel-title">Cartera de Préstamos ({prestamos.length})</div>
 
           <div className="search-filter-bar">
@@ -50,6 +67,10 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
               <option value="Pagado">Pagados</option>
               <option value="Cancelado">Cancelados</option>
             </select>
+
+            <button className="btn btn-secondary" onClick={loadPrestamos} title="Actualizar Datos" disabled={loading} style={{ padding: '0.5rem' }}>
+              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            </button>
 
             <button className="btn btn-secondary" onClick={onOpenSimulador}>
               <Calculator size={16} />
@@ -75,7 +96,7 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                 <th style={{ whiteSpace: 'nowrap' }}>Total Pagar</th>
                 <th style={{ whiteSpace: 'nowrap' }}>Saldo Pendiente</th>
                 <th>Estado</th>
-                <th>Acción</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -96,8 +117,13 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                   const totalPagar = p.totalAPagar !== undefined ? p.totalAPagar : (p.totalPagar !== undefined ? p.totalPagar : 0);
                   const saldoPendiente = p.saldoPendienteTotal !== undefined ? p.saldoPendienteTotal : (p.saldoPendiente !== undefined ? p.saldoPendiente : 0);
                   
-                  return (
-                    <tr key={p.id}>
+                    const isHighlighted = activeHighlight != null && activeHighlight == p.id;
+                    return (
+                      <tr 
+                        key={p.id} 
+                        id={`prestamo-row-${p.id}`}
+                        className={isHighlighted ? 'highlighted-row' : ''}
+                      >
                       <td style={{ whiteSpace: 'nowrap' }}><strong>Préstamo #{p.id}</strong></td>
                       <td>
                         <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{nombreCliente}</div>
@@ -124,13 +150,27 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                         <span className={`badge badge-${p.estado?.toLowerCase()}`}>{p.estado}</span>
                       </td>
                       <td>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleVerCronograma(p)}
-                        >
-                          <Eye size={14} />
-                          Cronograma
-                        </button>
+                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleVerCronograma(p)}
+                          >
+                            <Eye size={14} />
+                            Cronograma
+                          </button>
+
+                          {(p.estado === 'EnCurso' || p.estado === 'Vencido') && (
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => onRefinanciar && onRefinanciar(p)}
+                              title="Refinanciar o Ampliar Préstamo"
+                              style={{ color: '#2563eb', borderColor: 'rgba(37, 99, 235, 0.3)' }}
+                            >
+                              <RefreshCw size={13} />
+                              Refinanciar
+                            </button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -146,6 +186,7 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
         onClose={() => setIsDetalleOpen(false)}
         prestamo={selectedPrestamo}
         onCobrarCuota={onCobrarCuota}
+        onRefinanciar={onRefinanciar}
         onActualizar={loadPrestamos}
       />
     </div>

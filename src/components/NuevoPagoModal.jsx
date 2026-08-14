@@ -1,44 +1,58 @@
 import React, { useState, useEffect } from 'react';
-import { X, Receipt, DollarSign, CreditCard, FileText } from 'lucide-react';
+import { X, Receipt, DollarSign, CreditCard, FileText, AlertTriangle, AlertCircle } from 'lucide-react';
 import { prestamosApi, cuotasApi, pagosApi } from '../services/api';
+import { extractApiErrorDetails } from '../services/errorHandler';
 
-export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, onPagoRegistrado }) {
+export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, initialPrestamo = null, onPagoRegistrado }) {
   const [prestamos, setPrestamos] = useState([]);
   const [cuotas, setCuotas] = useState([]);
   const [formData, setFormData] = useState({
     prestamoId: '',
     cuotaId: '',
-    monto: 0,
+    monto: '',
     metodoPago: 'Efectivo',
     numeroOperacion: '',
     observaciones: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     if (isOpen) {
       loadPrestamos();
       if (initialCuota) {
+        setFormData({
+          prestamoId: initialCuota.prestamoId || '',
+          cuotaId: initialCuota.id,
+          monto: (parseFloat(initialCuota.montoCuota) + parseFloat(initialCuota.interesMoratorio || 0)).toFixed(2),
+          metodoPago: 'Efectivo',
+          numeroOperacion: `REC-${Date.now().toString().slice(-6)}`,
+          observaciones: initialCuota.interesMoratorio > 0 ? `Cobro con mora de S/. ${parseFloat(initialCuota.interesMoratorio).toFixed(2)}` : ''
+        });
+        if (initialCuota.prestamoId) {
+          loadCuotas(initialCuota.prestamoId);
+        }
+      } else if (initialPrestamo) {
         setFormData(prev => ({
           ...prev,
-          prestamoId: initialCuota.prestamoId,
-          cuotaId: initialCuota.id,
-          monto: initialCuota.montoCuota
+          prestamoId: initialPrestamo.id,
+          numeroOperacion: `REC-${Date.now().toString().slice(-6)}`
         }));
-        loadCuotas(initialCuota.prestamoId);
+        loadCuotas(initialPrestamo.id);
+      } else {
+        setFormData(prev => ({
+          ...prev,
+          numeroOperacion: `REC-${Date.now().toString().slice(-6)}`
+        }));
       }
     }
-  }, [isOpen, initialCuota]);
+  }, [isOpen, initialCuota, initialPrestamo]);
 
   const loadPrestamos = async () => {
     try {
-      const list = await prestamosApi.getPrestamos(null, 'EnCurso');
-      setPrestamos(list || []);
-      if (list && list.length > 0 && !formData.prestamoId && !initialCuota) {
-        setFormData(prev => ({ ...prev, prestamoId: list[0].id }));
-        loadCuotas(list[0].id);
-      }
+      const data = await prestamosApi.getPrestamos('', 'EnCurso');
+      setPrestamos(data || []);
     } catch (err) {
       console.error(err);
     }
@@ -50,13 +64,6 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
       const list = await cuotasApi.getCuotasByPrestamo(prestamoId);
       const pendientes = list.filter(c => c.estado !== 'Pagado');
       setCuotas(pendientes);
-      if (pendientes.length > 0 && !initialCuota) {
-        setFormData(prev => ({
-          ...prev,
-          cuotaId: pendientes[0].id,
-          monto: pendientes[0].montoCuota
-        }));
-      }
     } catch (err) {
       console.error(err);
     }
@@ -64,13 +71,28 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
 
   if (!isOpen) return null;
 
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.prestamoId) errors.prestamoId = 'Debe seleccionar un "Préstamo" para asociar el cobro.';
+    if (!formData.cuotaId) errors.cuotaId = 'Debe seleccionar la "Cuota a Cobrar".';
+    const montoNum = parseFloat(formData.monto);
+    if (isNaN(montoNum) || montoNum <= 0) errors.monto = 'El "Monto Recibido" debe ser un número válido mayor a S/. 0.';
+    return errors;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.prestamoId || !formData.monto) {
-      setError('Seleccione un préstamo e ingrese un monto válido.');
+    setError('');
+    setFieldErrors({});
+
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      const firstErrorKey = Object.keys(validationErrors)[0];
+      setError(`⚠️ Error en campo: ${validationErrors[firstErrorKey]}`);
       return;
     }
-    setError('');
+
     setLoading(true);
 
     try {
@@ -88,15 +110,27 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
       onClose();
     } catch (err) {
       console.error('Error al registrar pago:', err);
-      const apiMsg = err.response?.data?.mensaje 
-        || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(', ') : null)
-        || err.response?.data?.title 
-        || 'Error al registrar el cobro en el servidor.';
-      setError(apiMsg);
+      const details = extractApiErrorDetails(err, 'Error al registrar el cobro en el servidor.');
+      setError(details.message);
+      setFieldErrors(details.fieldErrors || {});
     } finally {
       setLoading(false);
     }
   };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (fieldErrors[field] || fieldErrors[field.toLowerCase()]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        delete next[field.toLowerCase()];
+        return next;
+      });
+    }
+  };
+
+  const cuotaSeleccionadaObj = cuotas.find(c => c.id === parseInt(formData.cuotaId));
 
   return (
     <div className="modal-overlay">
@@ -111,24 +145,41 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="modal-body">
             {error && (
-              <div style={{ padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#ef4444', marginBottom: '1rem', fontSize: '0.85rem' }}>
-                {error}
+              <div style={{
+                padding: '0.85rem 1rem',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '8px',
+                color: '#dc2626',
+                marginBottom: '1.25rem',
+                fontSize: '0.85rem',
+                lineHeight: '1.4',
+                whiteSpace: 'pre-line',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem'
+              }}>
+                <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>{error}</div>
               </div>
             )}
 
             <div className="field-group" style={{ marginBottom: '1.25rem' }}>
-              <label>Seleccionar Préstamo *</label>
+              <label style={{ color: fieldErrors.prestamoId ? '#dc2626' : undefined, fontWeight: 500 }}>
+                Seleccionar Préstamo *
+              </label>
               <select
                 className="form-select no-icon"
                 value={formData.prestamoId}
                 onChange={(e) => {
                   const pid = e.target.value;
-                  setFormData({ ...formData, prestamoId: pid });
+                  handleInputChange('prestamoId', pid);
                   loadCuotas(pid);
                 }}
+                style={fieldErrors.prestamoId ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
                 required
               >
                 <option value="">-- Seleccionar Préstamo --</option>
@@ -138,47 +189,93 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
                   </option>
                 ))}
               </select>
+              {fieldErrors.prestamoId && (
+                <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                  ❌ {fieldErrors.prestamoId}
+                </span>
+              )}
             </div>
 
             <div className="field-group" style={{ marginBottom: '1.25rem' }}>
-              <label>Cuota a Cobrar *</label>
+              <label style={{ color: fieldErrors.cuotaId ? '#dc2626' : undefined, fontWeight: 500 }}>
+                Cuota a Cobrar *
+              </label>
               <select
                 className="form-select no-icon"
                 value={formData.cuotaId}
                 onChange={(e) => {
                   const cid = e.target.value;
                   const selected = cuotas.find(c => c.id === parseInt(cid));
-                  setFormData({
-                    ...formData,
-                    cuotaId: cid,
-                    monto: selected ? selected.montoCuota : formData.monto
-                  });
+                  const montoConMora = selected ? (parseFloat(selected.montoCuota) + parseFloat(selected.interesMoratorio || 0)).toFixed(2) : formData.monto;
+                  handleInputChange('cuotaId', cid);
+                  handleInputChange('monto', montoConMora);
+                  if (selected && selected.interesMoratorio > 0) {
+                    handleInputChange('observaciones', `Incluye S/. ${parseFloat(selected.interesMoratorio).toFixed(2)} de mora.`);
+                  }
                 }}
+                style={fieldErrors.cuotaId ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
                 required
               >
                 <option value="">-- Seleccionar Cuota Pendiente --</option>
-                {cuotas.map(c => (
-                  <option key={c.id} value={c.id}>
-                    Cuota #{c.numeroCuota} (Vence: {c.fechaVencimiento?.split('T')[0] || c.fechaVencimiento}) - S/. {c.montoCuota} [{c.estado}]
-                  </option>
-                ))}
+                {cuotas.map(c => {
+                  const mora = parseFloat(c.interesMoratorio || 0);
+                  return (
+                    <option key={c.id} value={c.id}>
+                      Cuota #{c.numeroCuota} (Vence: {c.fechaVencimiento?.split('T')[0] || c.fechaVencimiento}) - S/. {c.montoCuota} [{c.estado}] {mora > 0 ? `(+ S/. ${mora.toFixed(2)} Mora)` : ''}
+                    </option>
+                  );
+                })}
               </select>
+              {fieldErrors.cuotaId && (
+                <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                  ❌ {fieldErrors.cuotaId}
+                </span>
+              )}
             </div>
+
+            {cuotaSeleccionadaObj && cuotaSeleccionadaObj.interesMoratorio > 0 && (
+              <div style={{
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: '8px',
+                padding: '0.75rem',
+                marginBottom: '1rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.82rem',
+                color: '#dc2626'
+              }}>
+                <AlertTriangle size={18} />
+                <span>
+                  <strong>Cuota en mora ({cuotaSeleccionadaObj.diasAtraso} días de atraso):</strong> Se ha calculado un recargo de S/. {parseFloat(cuotaSeleccionadaObj.interesMoratorio).toFixed(2)}.
+                </span>
+              </div>
+            )}
 
             <div className="form-grid">
               <div className="field-group">
-                <label>Monto Recibido (S/.) *</label>
+                <label style={{ color: fieldErrors.monto ? '#dc2626' : undefined, fontWeight: 500 }}>
+                  Monto Recibido (S/.) *
+                </label>
                 <div className="input-group">
-                  <DollarSign size={16} />
+                  <DollarSign size={16} color={fieldErrors.monto ? '#dc2626' : undefined} />
                   <input
                     type="number"
                     className="form-input"
                     value={formData.monto}
-                    onChange={(e) => setFormData({ ...formData, monto: e.target.value })}
-                    step="0.1"
+                    onChange={(e) => handleInputChange('monto', e.target.value)}
+                    step="any"
+                    min="0.01"
+                    style={fieldErrors.monto ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
                     required
                   />
                 </div>
+                {fieldErrors.monto && (
+                  <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                    ❌ {fieldErrors.monto}
+                  </span>
+                )}
               </div>
 
               <div className="field-group">
@@ -186,7 +283,7 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
                 <select
                   className="form-select no-icon"
                   value={formData.metodoPago}
-                  onChange={(e) => setFormData({ ...formData, metodoPago: e.target.value })}
+                  onChange={(e) => handleInputChange('metodoPago', e.target.value)}
                 >
                   <option value="Efectivo">Efectivo (Ventanilla)</option>
                   <option value="Transferencia">Transferencia Bancaria</option>
@@ -206,24 +303,34 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
                   className="form-input"
                   placeholder="Ej. YAP-98412 o REC-0014"
                   value={formData.numeroOperacion}
-                  onChange={(e) => setFormData({ ...formData, numeroOperacion: e.target.value })}
+                  onChange={(e) => handleInputChange('numeroOperacion', e.target.value)}
                 />
               </div>
             </div>
 
             <div className="field-group" style={{ marginTop: '1.25rem' }}>
-              <label>Observaciones del Pago</label>
+              <label style={{ color: fieldErrors.observaciones ? '#dc2626' : undefined, fontWeight: 500 }}>
+                Observaciones del Pago
+              </label>
               <div className="input-group">
-                <FileText size={16} />
+                <FileText size={16} color={fieldErrors.observaciones ? '#dc2626' : undefined} />
                 <textarea
                   className="form-textarea"
                   rows="2"
                   placeholder="Notas adicionales..."
                   value={formData.observaciones}
-                  onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                  style={{ paddingLeft: '2.6rem' }}
+                  onChange={(e) => handleInputChange('observaciones', e.target.value)}
+                  style={{
+                    paddingLeft: '2.6rem',
+                    ...(fieldErrors.observaciones ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {})
+                  }}
                 />
               </div>
+              {fieldErrors.observaciones && (
+                <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                  ❌ {fieldErrors.observaciones}
+                </span>
+              )}
             </div>
           </div>
 
@@ -232,7 +339,7 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, o
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Registrando...' : 'Confirmar Cobro'}
+              {loading ? 'Registrando en la base de datos...' : 'Confirmar Cobro & Emitir Recibo'}
             </button>
           </div>
         </form>

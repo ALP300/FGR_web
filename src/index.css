@@ -582,6 +582,27 @@ body {
   border-bottom: none;
 }
 
+@keyframes pulseHighlight {
+  0% { background-color: #fef08a; }
+  50% { background-color: #fde047; }
+  100% { background-color: #fef08a; }
+}
+
+tr.highlighted-row td {
+  animation: pulseHighlight 2s infinite !important;
+  background-color: #fef08a !important;
+  border-top: 2px solid #eab308 !important;
+  border-bottom: 2px solid #eab308 !important;
+}
+
+tr.highlighted-row td:first-child {
+  border-left: 2px solid #eab308 !important;
+}
+
+tr.highlighted-row td:last-child {
+  border-right: 2px solid #eab308 !important;
+}
+
 /* Status Badges */
 .badge {
   display: inline-flex;
