@@ -101,13 +101,12 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
           <table className="custom-table">
             <thead>
               <tr>
-                <th>N° Cuota</th>
+                <th>Período</th>
                 <th>Préstamo #</th>
                 <th>Cliente Titular</th>
                 <th style={{ whiteSpace: 'nowrap' }}>Fecha Vencimiento</th>
-                <th style={{ whiteSpace: 'nowrap' }}>Monto a Cobrar</th>
-                <th style={{ whiteSpace: 'nowrap' }}>Capital</th>
-                <th style={{ whiteSpace: 'nowrap' }}>Interés</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Interés a Cobrar</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Mora</th>
                 <th>Estado / Atraso</th>
                 <th>Acciones</th>
               </tr>
@@ -115,11 +114,11 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>Cargando información de cuotas...</td>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Cargando información de cuotas...</td>
                 </tr>
               ) : currentList.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                     No hay cuotas registradas en esta categoría.
                   </td>
                 </tr>
@@ -133,7 +132,7 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
 
                   return (
                     <tr key={c.id}>
-                      <td style={{ whiteSpace: 'nowrap' }}>Cuota #{c.numeroCuota}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>Mes #{c.numeroCuota}</td>
                       <td style={{ whiteSpace: 'nowrap' }}><strong>Préstamo #{c.prestamoId}</strong></td>
                       <td>
                         <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{nombreCliente}</div>
@@ -142,16 +141,12 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
                         </div>
                       </td>
                       <td style={{ whiteSpace: 'nowrap' }}>{fechaFormat}</td>
-                      <td style={{ fontSize: '1rem', fontWeight: 700, color: tabActive === 'vencidas' ? '#dc2626' : '#059669', whiteSpace: 'nowrap' }}>
-                        S/. {montoTotal}
-                        {mora > 0 && (
-                          <div style={{ fontSize: '0.7rem', color: '#7c3aed', fontWeight: 600 }}>
-                            (Inc. S/. {mora.toFixed(2)} mora)
-                          </div>
-                        )}
+                      <td style={{ fontSize: '1rem', fontWeight: 700, color: tabActive === 'vencidas' ? '#dc2626' : 'var(--primary)', whiteSpace: 'nowrap' }}>
+                        S/. {parseFloat(c.montoCuota || 0).toFixed(2)}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>S/. {parseFloat(c.capital || 0).toFixed(2)}</td>
-                      <td style={{ whiteSpace: 'nowrap' }}>S/. {parseFloat(c.interes || 0).toFixed(2)}</td>
+                      <td style={{ whiteSpace: 'nowrap', color: mora > 0 ? '#7c3aed' : 'var(--text-muted)', fontWeight: mora > 0 ? 700 : 400 }}>
+                        {mora > 0 ? `S/. ${mora.toFixed(2)}` : 'S/. 0.00'}
+                      </td>
                       <td>
                         <span className={`badge badge-${c.estado?.toLowerCase()}`}>
                           {c.diasAtraso > 0 ? `${c.diasAtraso} días atraso` : c.estado}

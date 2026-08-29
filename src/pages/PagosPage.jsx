@@ -105,8 +105,14 @@ export default function PagosPage({ onNuevoPago }) {
                     </td>
                     <td><strong>Préstamo #{pg.prestamoId}</strong></td>
                     <td>{pg.nombreCliente || pg.clienteNombre}</td>
-                    <td style={{ fontSize: '1rem', fontWeight: 800, color: '#059669' }}>
+                    <td style={{ fontSize: '1rem', fontWeight: 800, color: '#059669', whiteSpace: 'nowrap' }}>
                       S/. {parseFloat(pg.monto).toFixed(2)}
+                      {(parseFloat(pg.montoCapital || 0) > 0 || parseFloat(pg.montoInteres || 0) > 0) && (
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                          {parseFloat(pg.montoInteres || 0) > 0 && `Int: S/. ${parseFloat(pg.montoInteres).toFixed(2)} `}
+                          {parseFloat(pg.montoCapital || 0) > 0 && `| Cap: S/. ${parseFloat(pg.montoCapital).toFixed(2)}`}
+                        </div>
+                      )}
                     </td>
                     <td>
                       <span className="badge badge-activo" style={{ background: 'rgba(59, 130, 246, 0.12)', color: '#2563eb', borderColor: 'rgba(59, 130, 246, 0.3)' }}>

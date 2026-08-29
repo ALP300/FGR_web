@@ -97,25 +97,35 @@ export default function ReciboPagoModal({ isOpen, onClose, pago }) {
                 <span style={{ fontWeight: 700 }}>Préstamo #{pago.prestamoId}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', fontSize: '0.82rem' }}>
-                <span>Cuota Abonada:</span>
-                <span>Cuota #{pago.numeroCuota || 1}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.35rem', fontSize: '0.82rem' }}>
                 <span>Método de Pago:</span>
                 <span style={{ fontWeight: 600 }}>{pago.metodoPago || 'Efectivo'}</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '1.1rem', fontWeight: 800, color: '#059669' }}>
-                <span>MONTO PAGADO:</span>
+              {parseFloat(pago.montoInteres || 0) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.8rem', color: '#64748b' }}>
+                  <span>• Pago Interés / Mora:</span>
+                  <span>S/. {parseFloat(pago.montoInteres).toFixed(2)}</span>
+                </div>
+              )}
+              {parseFloat(pago.montoCapital || 0) > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem', fontSize: '0.8rem', color: '#2563eb', fontWeight: 600 }}>
+                  <span>• Abono a Capital:</span>
+                  <span>S/. {parseFloat(pago.montoCapital).toFixed(2)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '1.15rem', fontWeight: 800, color: '#059669', paddingTop: '0.4rem', borderTop: '1px dotted #cbd5e1' }}>
+                <span>TOTAL ABONADO:</span>
                 <span>S/. {parseFloat(pago.monto).toFixed(2)}</span>
               </div>
             </div>
 
             {/* Saldo Restante */}
             <div style={{ fontSize: '0.82rem', marginBottom: '1rem', lineHeight: '1.5' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#dc2626', fontWeight: 700 }}>
-                <span>Saldo Pendiente Préstamo:</span>
-                <span>S/. {parseFloat(pago.saldoRestantePrestamo || 0).toFixed(2)}</span>
-              </div>
+              {pago.saldoCapitalRestante !== undefined && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: '#1e40af', fontWeight: 700 }}>
+                  <span>Saldo Capital Restante:</span>
+                  <span>S/. {parseFloat(pago.saldoCapitalRestante).toFixed(2)}</span>
+                </div>
+              )}
               {pago.observaciones && (
                 <div style={{ marginTop: '0.5rem', fontSize: '0.75rem', color: '#64748b', fontStyle: 'italic' }}>
                   Nota: {pago.observaciones}

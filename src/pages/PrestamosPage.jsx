@@ -90,10 +90,10 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
               <tr>
                 <th>Préstamo #</th>
                 <th>Cliente Titular</th>
-                <th style={{ whiteSpace: 'nowrap' }}>Monto Desembolsado</th>
-                <th>Modalidad / Tasa</th>
-                <th>Cuotas</th>
-                <th style={{ whiteSpace: 'nowrap' }}>Total Pagar</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Capital Inicial</th>
+                <th style={{ whiteSpace: 'nowrap' }}>Saldo Capital</th>
+                <th>Tasa / Interés Mensual</th>
+                <th>Modalidad</th>
                 <th style={{ whiteSpace: 'nowrap' }}>Saldo Pendiente</th>
                 <th>Estado</th>
                 <th>Acciones</th>
@@ -114,16 +114,17 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                 prestamos.map((p) => {
                   const nombreCliente = p.nombreCliente || p.clienteNombre || (p.cliente ? `${p.cliente.nombres || ''} ${p.cliente.apellidos || ''}`.trim() : 'Sin Nombre');
                   const dniCliente = p.dniCliente || p.clienteDni || (p.cliente?.dni) || '';
-                  const totalPagar = p.totalAPagar !== undefined ? p.totalAPagar : (p.totalPagar !== undefined ? p.totalPagar : 0);
+                  const saldoCap = p.saldoCapital !== undefined ? p.saldoCapital : p.montoDispersado;
+                  const interesMensual = p.interesMensualActual !== undefined ? p.interesMensualActual : Math.round((saldoCap * (p.tasaInteres / 100)) * 100) / 100;
                   const saldoPendiente = p.saldoPendienteTotal !== undefined ? p.saldoPendienteTotal : (p.saldoPendiente !== undefined ? p.saldoPendiente : 0);
                   
-                    const isHighlighted = activeHighlight != null && activeHighlight == p.id;
-                    return (
-                      <tr 
-                        key={p.id} 
-                        id={`prestamo-row-${p.id}`}
-                        className={isHighlighted ? 'highlighted-row' : ''}
-                      >
+                  const isHighlighted = activeHighlight != null && activeHighlight == p.id;
+                  return (
+                    <tr 
+                      key={p.id} 
+                      id={`prestamo-row-${p.id}`}
+                      className={isHighlighted ? 'highlighted-row' : ''}
+                    >
                       <td style={{ whiteSpace: 'nowrap' }}><strong>Préstamo #{p.id}</strong></td>
                       <td>
                         <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{nombreCliente}</div>
@@ -133,15 +134,18 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                           </div>
                         )}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}>
+                      <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>
                         S/. {parseFloat(p.montoDispersado || 0).toFixed(2)}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>
-                        {p.modalidadPago} ({p.tasaInteres}%)
+                      <td style={{ whiteSpace: 'nowrap', fontWeight: 700, color: saldoCap > 0 ? '#1e40af' : '#16a34a' }}>
+                        S/. {parseFloat(saldoCap || 0).toFixed(2)}
                       </td>
-                      <td style={{ whiteSpace: 'nowrap' }}>{p.numeroCuotas} cuotas</td>
-                      <td style={{ whiteSpace: 'nowrap', color: 'var(--accent-gold)', fontWeight: 600 }}>
-                        S/. {parseFloat(totalPagar).toFixed(2)}
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--primary)' }}>S/. {parseFloat(interesMensual || 0).toFixed(2)}</span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginLeft: '4px' }}>({p.tasaInteres}%/mes)</span>
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
+                        Plazo Abierto
                       </td>
                       <td style={{ whiteSpace: 'nowrap', color: saldoPendiente > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
                         S/. {parseFloat(saldoPendiente).toFixed(2)}
@@ -154,9 +158,10 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                           <button
                             className="btn btn-secondary btn-sm"
                             onClick={() => handleVerCronograma(p)}
+                            title="Ver detalle e historial del préstamo"
                           >
                             <Eye size={14} />
-                            Cronograma
+                            Detalle
                           </button>
 
                           {(p.estado === 'EnCurso' || p.estado === 'Vencido') && (

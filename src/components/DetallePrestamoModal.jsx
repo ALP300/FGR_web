@@ -99,33 +99,39 @@ export default function DetallePrestamoModal({ isOpen, onClose, prestamo, onCobr
             <div className="kpi-grid" style={{ marginBottom: '1.5rem' }}>
               <div className="kpi-card" style={{ padding: '0.9rem' }}>
                 <div className="kpi-info">
-                  <h4>Monto Entregado</h4>
+                  <h4>Capital Inicial</h4>
                   <div className="kpi-value" style={{ whiteSpace: 'nowrap' }}>S/. {parseFloat(prestamo.montoDispersado).toFixed(2)}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Desembolso original</div>
                 </div>
               </div>
 
               <div className="kpi-card" style={{ padding: '0.9rem' }}>
                 <div className="kpi-info">
-                  <h4>Modalidad / Tasa</h4>
-                  <div className="kpi-value" style={{ fontSize: '1.2rem', whiteSpace: 'nowrap' }}>
-                    {prestamo.modalidadPago} ({prestamo.tasaInteres}%)
+                  <h4>Saldo Capital Vigente</h4>
+                  <div className="kpi-value" style={{ fontSize: '1.25rem', color: '#1e40af', whiteSpace: 'nowrap' }}>
+                    S/. {parseFloat(prestamo.saldoCapital !== undefined ? prestamo.saldoCapital : prestamo.montoDispersado).toFixed(2)}
                   </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Capital pendiente</div>
                 </div>
               </div>
 
               <div className="kpi-card" style={{ padding: '0.9rem' }}>
                 <div className="kpi-info">
-                  <h4>Total a Pagar</h4>
-                  <div className="kpi-value" style={{ color: 'var(--accent-gold)', whiteSpace: 'nowrap' }}>S/. {parseFloat(totalPagar).toFixed(2)}</div>
-                </div>
-              </div>
-
-              <div className="kpi-card" style={{ padding: '0.9rem' }}>
-                <div className="kpi-info">
-                  <h4>Saldo Pendiente</h4>
-                  <div className="kpi-value" style={{ color: saldoPendiente > 0 ? '#dc2626' : '#059669', whiteSpace: 'nowrap' }}>
-                    S/. {parseFloat(saldoPendiente).toFixed(2)}
+                  <h4>Interés Mensual Actual</h4>
+                  <div className="kpi-value" style={{ color: 'var(--primary)', whiteSpace: 'nowrap' }}>
+                    S/. {parseFloat(prestamo.interesMensualActual || (prestamo.saldoCapital || prestamo.montoDispersado) * (prestamo.tasaInteres / 100) || 0).toFixed(2)}
                   </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>({prestamo.tasaInteres}% sobre saldo capital)</div>
+                </div>
+              </div>
+
+              <div className="kpi-card" style={{ padding: '0.9rem' }}>
+                <div className="kpi-info">
+                  <h4>Capital Amortizado</h4>
+                  <div className="kpi-value" style={{ color: '#16a34a', whiteSpace: 'nowrap' }}>
+                    S/. {Math.max(0, parseFloat(prestamo.montoDispersado || 0) - parseFloat(prestamo.saldoCapital !== undefined ? prestamo.saldoCapital : prestamo.montoDispersado)).toFixed(2)}
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>En múltiplos de S/. 500</div>
                 </div>
               </div>
             </div>
@@ -133,18 +139,18 @@ export default function DetallePrestamoModal({ isOpen, onClose, prestamo, onCobr
             {/* Cronograma de Cuotas Table */}
             <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
               <Calendar size={18} className="text-primary" />
-              Cronograma y Estado de Cuotas
+              Historial y Cuotas Mensuales de Interés
             </h4>
 
             <div className="table-responsive" style={{ maxHeight: '280px' }}>
               <table className="custom-table">
                 <thead>
                   <tr>
-                    <th>N° Cuota</th>
-                    <th>Fecha Vencimiento</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>Monto Cuota</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>Capital</th>
-                    <th style={{ whiteSpace: 'nowrap' }}>Interés</th>
+                    <th>N° Período</th>
+                    <th>Vencimiento</th>
+                    <th style={{ whiteSpace: 'nowrap' }}>Interés del Mes</th>
+                    <th style={{ whiteSpace: 'nowrap' }}>Monto Pagado</th>
+                    <th style={{ whiteSpace: 'nowrap' }}>Saldo Interés</th>
                     <th>Estado</th>
                     <th>Acción</th>
                   </tr>
@@ -161,11 +167,18 @@ export default function DetallePrestamoModal({ isOpen, onClose, prestamo, onCobr
                   ) : (
                     cuotas.map(c => (
                       <tr key={c.id}>
-                        <td style={{ whiteSpace: 'nowrap' }}>Cuota #{c.numeroCuota}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>Mes #{c.numeroCuota}</td>
                         <td style={{ whiteSpace: 'nowrap' }}>{c.fechaVencimiento?.split('T')[0] || c.fechaVencimiento}</td>
                         <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}>S/. {parseFloat(c.montoCuota).toFixed(2)}</td>
-                        <td style={{ whiteSpace: 'nowrap' }}>S/. {parseFloat(c.capital || 0).toFixed(2)}</td>
-                        <td style={{ whiteSpace: 'nowrap' }}>S/. {parseFloat(c.interes || 0).toFixed(2)}</td>
+                        <td style={{ whiteSpace: 'nowrap', color: '#16a34a' }}>S/. {parseFloat(c.montoPagado || 0).toFixed(2)}</td>
+                        <td style={{ whiteSpace: 'nowrap', color: parseFloat(c.saldoPendiente || 0) > 0 ? '#dc2626' : '#16a34a' }}>
+                          S/. {parseFloat(c.saldoPendiente || 0).toFixed(2)}
+                          {parseFloat(c.interesMoratorio || 0) > 0 && (
+                            <span style={{ fontSize: '0.72rem', color: '#dc2626', display: 'block' }}>
+                              + S/. {parseFloat(c.interesMoratorio).toFixed(2)} mora
+                            </span>
+                          )}
+                        </td>
                         <td>
                           <span className={`badge badge-${c.estado?.toLowerCase()}`}>
                             {c.estado === 'Pagado' && <CheckCircle size={12} />}

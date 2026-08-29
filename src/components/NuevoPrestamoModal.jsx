@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Banknote, User, DollarSign, Percent, Calendar, FileText, AlertCircle } from 'lucide-react';
+import { X, Banknote, User, DollarSign, Percent, Calendar, FileText, AlertCircle, Info } from 'lucide-react';
 import { clientesApi, prestamosApi } from '../services/api';
 import { extractApiErrorDetails } from '../services/errorHandler';
 
@@ -9,16 +9,18 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
     clienteId: '',
     montoDispersado: 1000,
     tasaInteres: 10,
-    tipoInteres: 'Diario',
-    modalidadPago: 'Diario',
-    numeroCuotas: 20,
+    tipoInteres: 'Mensual',
+    modalidadPago: 'Mensual',
+    numeroCuotas: 1,
     fechaDesembolso: new Date().toISOString().split('T')[0],
-    fechaPrimerPago: new Date().toISOString().split('T')[0],
+    fechaPrimerPago: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
     observaciones: ''
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+
+  const SUGGESTED_MONTOS = [500, 1000, 1500, 2000, 2500, 3000, 4000, 5000];
 
   useEffect(() => {
     if (isOpen) {
@@ -52,17 +54,16 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
 
     const monto = parseFloat(formData.montoDispersado);
     if (isNaN(monto) || monto <= 0) {
-      errors.montoDispersado = 'El "Monto Desembolsado" debe ser un número mayor a 0.';
+      errors.montoDispersado = 'El "Monto Desembolsado" debe ser un número válido.';
+    } else if (monto < 500) {
+      errors.montoDispersado = 'El monto mínimo a prestar es de S/. 500.00.';
+    } else if (monto % 500 !== 0) {
+      errors.montoDispersado = `El monto debe ser en múltiplos de S/. 500 (ej. 500, 1000, 1500, 2000...). No se permite S/. ${monto}.`;
     }
 
     const tasa = parseFloat(formData.tasaInteres);
     if (isNaN(tasa) || tasa < 0) {
       errors.tasaInteres = 'La "Tasa de Interés" no puede ser negativa.';
-    }
-
-    const cuotas = parseInt(formData.numeroCuotas);
-    if (isNaN(cuotas) || cuotas < 1) {
-      errors.numeroCuotas = 'El "Número de Cuotas" debe ser mínimo 1.';
     }
 
     if (formData.fechaDesembolso && formData.fechaPrimerPago) {
@@ -96,9 +97,9 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
         clienteId: parseInt(formData.clienteId),
         montoDispersado: parseFloat(formData.montoDispersado),
         tasaInteres: parseFloat(formData.tasaInteres),
-        tipoInteres: formData.tipoInteres || 'Diario',
-        modalidadPago: formData.modalidadPago || 'Diario',
-        numeroCuotas: parseInt(formData.numeroCuotas),
+        tipoInteres: 'Mensual',
+        modalidadPago: 'Mensual',
+        numeroCuotas: 1, // Abierto / Mensual
         fechaDesembolso: formData.fechaDesembolso ? new Date(formData.fechaDesembolso).toISOString() : new Date().toISOString(),
         fechaPrimerPago: formData.fechaPrimerPago ? new Date(formData.fechaPrimerPago).toISOString() : new Date().toISOString(),
         observaciones: formData.observaciones ? formData.observaciones.trim() : ''
@@ -129,15 +130,21 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
     }
   };
 
+  // Cálculos en vivo
+  const montoNum = parseFloat(formData.montoDispersado) || 0;
+  const tasaNum = parseFloat(formData.tasaInteres) || 0;
+  const interesMensualCalculado = Math.round((montoNum * (tasaNum / 100)) * 100) / 100;
+  const esMontoValido = montoNum >= 500 && montoNum % 500 === 0;
+
   return (
     <div className="modal-overlay">
-      <div className="modal-container" style={{ maxWidth: '700px' }}>
+      <div className="modal-container" style={{ maxWidth: '720px' }}>
         <div className="modal-header">
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <Banknote className="text-primary" size={22} />
-            Aprobar y Desembolsar Préstamo
+            Aprobar y Desembolsar Préstamo (Plazo Abierto)
           </h3>
-          <button className="modal-close-btn" onClick={onClose}>
+          <button className="modal-close-btn" onClick={onClose} aria-label="Cerrar modal">
             <X size={20} />
           </button>
         </div>
@@ -164,6 +171,7 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
               </div>
             )}
 
+            {/* Cliente */}
             <div className="field-group" style={{ marginBottom: '1.25rem' }}>
               <label style={{ color: fieldErrors.clienteId ? '#dc2626' : undefined, fontWeight: 500 }}>
                 Cliente Titular *
@@ -192,34 +200,63 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
               )}
             </div>
 
-            <div className="form-grid">
-              <div className="field-group">
-                <label style={{ color: fieldErrors.montoDispersado ? '#dc2626' : undefined, fontWeight: 500 }}>
-                  Monto Desembolsado (S/.) *
-                </label>
-                <div className="input-group">
-                  <DollarSign size={16} color={fieldErrors.montoDispersado ? '#dc2626' : undefined} />
-                  <input
-                    type="number"
-                    className="form-input"
-                    value={formData.montoDispersado}
-                    onChange={(e) => handleInputChange('montoDispersado', e.target.value)}
-                    step="any"
-                    min="0.01"
-                    style={fieldErrors.montoDispersado ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
-                    required
-                  />
-                </div>
-                {fieldErrors.montoDispersado && (
-                  <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
-                    ❌ {fieldErrors.montoDispersado}
-                  </span>
-                )}
+            {/* Selector de Montos Rápidos */}
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>
+                Monto del Préstamo (Mínimo S/. 500, en múltiplos de S/. 500):
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                {SUGGESTED_MONTOS.map(m => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => handleInputChange('montoDispersado', m)}
+                    style={{
+                      padding: '0.35rem 0.75rem',
+                      borderRadius: '6px',
+                      border: formData.montoDispersado === m ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
+                      background: formData.montoDispersado === m ? 'var(--primary-light)' : '#ffffff',
+                      color: formData.montoDispersado === m ? 'var(--primary)' : 'var(--text-main)',
+                      fontWeight: formData.montoDispersado === m ? 700 : 500,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    S/. {m.toLocaleString('es-PE')}
+                  </button>
+                ))}
               </div>
 
+              <div className="input-group">
+                <DollarSign size={16} color={fieldErrors.montoDispersado ? '#dc2626' : undefined} />
+                <input
+                  type="number"
+                  className="form-input"
+                  value={formData.montoDispersado}
+                  onChange={(e) => handleInputChange('montoDispersado', e.target.value)}
+                  step="500"
+                  min="500"
+                  placeholder="Ej. 500, 1000, 1500, 2000..."
+                  style={fieldErrors.montoDispersado ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
+                  required
+                />
+              </div>
+              {fieldErrors.montoDispersado ? (
+                <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                  ❌ {fieldErrors.montoDispersado}
+                </span>
+              ) : !esMontoValido && montoNum > 0 ? (
+                <span style={{ color: '#d97706', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                  ⚠️ Recuerda: El monto debe ser mínimo S/. 500 y en múltiplos de S/. 500 (ej. 500, 1000, 1500, 2000...).
+                </span>
+              ) : null}
+            </div>
+
+            <div className="form-grid">
               <div className="field-group">
                 <label style={{ color: fieldErrors.tasaInteres ? '#dc2626' : undefined, fontWeight: 500 }}>
-                  Tasa Interés (%) *
+                  Tasa de Interés Mensual (%) *
                 </label>
                 <div className="input-group">
                   <Percent size={16} color={fieldErrors.tasaInteres ? '#dc2626' : undefined} />
@@ -242,44 +279,21 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
               </div>
 
               <div className="field-group">
-                <label>Modalidad de Cobro</label>
-                <select
-                  className="form-select no-icon"
-                  value={formData.modalidadPago}
-                  onChange={(e) => {
-                    handleInputChange('modalidadPago', e.target.value);
-                    handleInputChange('tipoInteres', e.target.value);
-                  }}
-                >
-                  <option value="Diario">Diario</option>
-                  <option value="Semanal">Semanal</option>
-                  <option value="Quincenal">Quincenal</option>
-                  <option value="Mensual">Mensual</option>
-                </select>
+                <label>Modalidad de Devolución</label>
+                <div style={{
+                  padding: '0.65rem 0.85rem',
+                  background: '#f1f5f9',
+                  borderRadius: '8px',
+                  fontSize: '0.85rem',
+                  color: 'var(--text-main)',
+                  fontWeight: 600
+                }}>
+                  📅 Interés Mensual / Plazo Abierto
+                </div>
               </div>
 
               <div className="field-group">
-                <label style={{ color: fieldErrors.numeroCuotas ? '#dc2626' : undefined, fontWeight: 500 }}>
-                  Número de Cuotas *
-                </label>
-                <input
-                  type="number"
-                  className="form-input no-icon"
-                  value={formData.numeroCuotas}
-                  onChange={(e) => handleInputChange('numeroCuotas', e.target.value)}
-                  min="1"
-                  style={fieldErrors.numeroCuotas ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
-                  required
-                />
-                {fieldErrors.numeroCuotas && (
-                  <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
-                    ❌ {fieldErrors.numeroCuotas}
-                  </span>
-                )}
-              </div>
-
-              <div className="field-group">
-                <label>Fecha Desembolso</label>
+                <label>Fecha de Desembolso</label>
                 <div className="input-group">
                   <Calendar size={16} />
                   <input
@@ -293,7 +307,7 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
 
               <div className="field-group">
                 <label style={{ color: fieldErrors.fechaPrimerPago ? '#dc2626' : undefined, fontWeight: 500 }}>
-                  Fecha Primer Pago
+                  Fecha de Primer Cobro de Interés
                 </label>
                 <div className="input-group">
                   <Calendar size={16} color={fieldErrors.fechaPrimerPago ? '#dc2626' : undefined} />
@@ -313,7 +327,59 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
               </div>
             </div>
 
-            <div className="field-group" style={{ marginTop: '1.25rem' }}>
+            {/* Tarjeta Resumen Financiero en Vivo */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(5, 150, 105, 0.08), rgba(5, 150, 105, 0.02))',
+              border: '1.5px solid rgba(5, 150, 105, 0.25)',
+              borderRadius: '12px',
+              padding: '1rem 1.25rem',
+              marginTop: '1.25rem',
+              marginBottom: '1rem'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                  Resumen de la Operación
+                </span>
+                <span style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px', background: 'rgba(5, 150, 105, 0.15)', color: 'var(--primary)', fontWeight: 700 }}>
+                  Sin fecha límite de capital
+                </span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem', marginTop: '0.5rem' }}>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Capital a Entregar:</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-main)' }}>
+                    S/. {montoNum.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Interés Mensual a Cobrar:</div>
+                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--primary)' }}>
+                    S/. {interesMensualCalculado.toLocaleString('es-PE', { minimumFractionDigits: 2 })}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>({tasaNum}% de S/. {montoNum})</div>
+                </div>
+              </div>
+              <div style={{
+                marginTop: '0.75rem',
+                paddingTop: '0.75rem',
+                borderTop: '1px solid rgba(5, 150, 105, 0.15)',
+                fontSize: '0.78rem',
+                color: 'var(--text-muted)',
+                lineHeight: 1.4,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '6px'
+              }}>
+                <Info size={15} style={{ color: 'var(--primary)', flexShrink: 0, marginTop: '2px' }} />
+                <span>
+                  El cliente abonará <strong>S/. {interesMensualCalculado.toFixed(2)}</strong> de interés cada mes. 
+                  Podrá devolver el capital cuando lo decida, ya sea en su totalidad o mediante abonos en múltiplos de <strong>S/. 500</strong>, reduciendo el interés del mes siguiente.
+                </span>
+              </div>
+            </div>
+
+            {/* Observaciones */}
+            <div className="field-group" style={{ marginTop: '1rem' }}>
               <label style={{ color: fieldErrors.observaciones ? '#dc2626' : undefined, fontWeight: 500 }}>
                 Observaciones del Desembolso
               </label>
@@ -331,20 +397,15 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
                   }}
                 />
               </div>
-              {fieldErrors.observaciones && (
-                <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
-                  ❌ {fieldErrors.observaciones}
-                </span>
-              )}
             </div>
           </div>
 
           <div className="modal-footer">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+            <button type="button" className="btn btn-secondary" onClick={onClose} disabled={loading}>
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Procesando en la base de datos...' : 'Desembolsar Préstamo'}
+              {loading ? 'Registrando...' : 'Desembolsar Préstamo'}
             </button>
           </div>
         </form>
