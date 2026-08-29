@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Banknote, User, DollarSign, Percent, Calendar, FileText } from 'lucide-react';
+import { X, Banknote, User, DollarSign, Percent, Calendar, FileText, AlertCircle } from 'lucide-react';
 import { clientesApi, prestamosApi } from '../services/api';
+import { extractApiErrorDetails } from '../services/errorHandler';
 
 export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null, onPrestamoCreado }) {
   const [clientes, setClientes] = useState([]);
@@ -17,6 +18,7 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   useEffect(() => {
     if (isOpen) {
@@ -41,13 +43,52 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
 
   if (!isOpen) return null;
 
+  const validateForm = () => {
+    const errors = {};
+
+    if (!formData.clienteId) {
+      errors.clienteId = 'Debe seleccionar un "Cliente Titular" obligatorio.';
+    }
+
+    const monto = parseFloat(formData.montoDispersado);
+    if (isNaN(monto) || monto <= 0) {
+      errors.montoDispersado = 'El "Monto Desembolsado" debe ser un número mayor a 0.';
+    }
+
+    const tasa = parseFloat(formData.tasaInteres);
+    if (isNaN(tasa) || tasa < 0) {
+      errors.tasaInteres = 'La "Tasa de Interés" no puede ser negativa.';
+    }
+
+    const cuotas = parseInt(formData.numeroCuotas);
+    if (isNaN(cuotas) || cuotas < 1) {
+      errors.numeroCuotas = 'El "Número de Cuotas" debe ser mínimo 1.';
+    }
+
+    if (formData.fechaDesembolso && formData.fechaPrimerPago) {
+      const d1 = new Date(formData.fechaDesembolso);
+      const d2 = new Date(formData.fechaPrimerPago);
+      if (d2 < d1) {
+        errors.fechaPrimerPago = 'La "Fecha Primer Pago" no puede ser anterior a la "Fecha de Desembolso".';
+      }
+    }
+
+    return errors;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.clienteId) {
-      setError('Seleccione un cliente para desembolsar el préstamo.');
+    setError('');
+    setFieldErrors({});
+
+    const validationErrors = validateForm();
+    if (Object.keys(validationErrors).length > 0) {
+      setFieldErrors(validationErrors);
+      const firstErrorKey = Object.keys(validationErrors)[0];
+      setError(`⚠️ Error en campo: ${validationErrors[firstErrorKey]}`);
       return;
     }
-    setError('');
+
     setLoading(true);
 
     try {
@@ -68,13 +109,23 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
       onClose();
     } catch (err) {
       console.error('Error al desembolsar préstamo:', err);
-      const apiMsg = err.response?.data?.mensaje 
-        || (err.response?.data?.errors ? Object.values(err.response.data.errors).flat().join(', ') : null)
-        || err.response?.data?.title 
-        || 'Error al registrar el préstamo en el servidor.';
-      setError(apiMsg);
+      const details = extractApiErrorDetails(err, 'Error al registrar el préstamo en el servidor.');
+      setError(details.message);
+      setFieldErrors(details.fieldErrors || {});
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    if (fieldErrors[field] || fieldErrors[field.toLowerCase()]) {
+      setFieldErrors(prev => {
+        const next = { ...prev };
+        delete next[field];
+        delete next[field.toLowerCase()];
+        return next;
+      });
     }
   };
 
@@ -91,22 +142,39 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} noValidate>
           <div className="modal-body">
             {error && (
-              <div style={{ padding: '0.75rem 1rem', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: '8px', color: '#ef4444', marginBottom: '1rem', fontSize: '0.85rem' }}>
-                {error}
+              <div style={{
+                padding: '0.85rem 1rem',
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                borderRadius: '8px',
+                color: '#dc2626',
+                marginBottom: '1.25rem',
+                fontSize: '0.85rem',
+                lineHeight: '1.4',
+                whiteSpace: 'pre-line',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.5rem'
+              }}>
+                <AlertCircle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
+                <div>{error}</div>
               </div>
             )}
 
             <div className="field-group" style={{ marginBottom: '1.25rem' }}>
-              <label>Cliente Titular *</label>
+              <label style={{ color: fieldErrors.clienteId ? '#dc2626' : undefined, fontWeight: 500 }}>
+                Cliente Titular *
+              </label>
               <div className="input-group">
-                <User size={16} />
+                <User size={16} color={fieldErrors.clienteId ? '#dc2626' : undefined} />
                 <select
                   className="form-select"
                   value={formData.clienteId}
-                  onChange={(e) => setFormData({ ...formData, clienteId: e.target.value })}
+                  onChange={(e) => handleInputChange('clienteId', e.target.value)}
+                  style={fieldErrors.clienteId ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
                   required
                 >
                   <option value="">-- Seleccione Cliente --</option>
@@ -117,36 +185,60 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
                   ))}
                 </select>
               </div>
+              {fieldErrors.clienteId && (
+                <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                  ❌ {fieldErrors.clienteId}
+                </span>
+              )}
             </div>
 
             <div className="form-grid">
               <div className="field-group">
-                <label>Monto Desembolsado (S/.) *</label>
+                <label style={{ color: fieldErrors.montoDispersado ? '#dc2626' : undefined, fontWeight: 500 }}>
+                  Monto Desembolsado (S/.) *
+                </label>
                 <div className="input-group">
-                  <DollarSign size={16} />
+                  <DollarSign size={16} color={fieldErrors.montoDispersado ? '#dc2626' : undefined} />
                   <input
                     type="number"
                     className="form-input"
                     value={formData.montoDispersado}
-                    onChange={(e) => setFormData({ ...formData, montoDispersado: e.target.value })}
+                    onChange={(e) => handleInputChange('montoDispersado', e.target.value)}
+                    step="any"
+                    min="0.01"
+                    style={fieldErrors.montoDispersado ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
                     required
                   />
                 </div>
+                {fieldErrors.montoDispersado && (
+                  <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                    ❌ {fieldErrors.montoDispersado}
+                  </span>
+                )}
               </div>
 
               <div className="field-group">
-                <label>Tasa Interés (%) *</label>
+                <label style={{ color: fieldErrors.tasaInteres ? '#dc2626' : undefined, fontWeight: 500 }}>
+                  Tasa Interés (%) *
+                </label>
                 <div className="input-group">
-                  <Percent size={16} />
+                  <Percent size={16} color={fieldErrors.tasaInteres ? '#dc2626' : undefined} />
                   <input
                     type="number"
                     className="form-input"
                     value={formData.tasaInteres}
-                    onChange={(e) => setFormData({ ...formData, tasaInteres: e.target.value })}
-                    step="0.5"
+                    onChange={(e) => handleInputChange('tasaInteres', e.target.value)}
+                    step="any"
+                    min="0"
+                    style={fieldErrors.tasaInteres ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
                     required
                   />
                 </div>
+                {fieldErrors.tasaInteres && (
+                  <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                    ❌ {fieldErrors.tasaInteres}
+                  </span>
+                )}
               </div>
 
               <div className="field-group">
@@ -154,7 +246,10 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
                 <select
                   className="form-select no-icon"
                   value={formData.modalidadPago}
-                  onChange={(e) => setFormData({ ...formData, modalidadPago: e.target.value, tipoInteres: e.target.value })}
+                  onChange={(e) => {
+                    handleInputChange('modalidadPago', e.target.value);
+                    handleInputChange('tipoInteres', e.target.value);
+                  }}
                 >
                   <option value="Diario">Diario</option>
                   <option value="Semanal">Semanal</option>
@@ -164,15 +259,23 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
               </div>
 
               <div className="field-group">
-                <label>Número de Cuotas</label>
+                <label style={{ color: fieldErrors.numeroCuotas ? '#dc2626' : undefined, fontWeight: 500 }}>
+                  Número de Cuotas *
+                </label>
                 <input
                   type="number"
                   className="form-input no-icon"
                   value={formData.numeroCuotas}
-                  onChange={(e) => setFormData({ ...formData, numeroCuotas: e.target.value })}
+                  onChange={(e) => handleInputChange('numeroCuotas', e.target.value)}
                   min="1"
+                  style={fieldErrors.numeroCuotas ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
                   required
                 />
+                {fieldErrors.numeroCuotas && (
+                  <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                    ❌ {fieldErrors.numeroCuotas}
+                  </span>
+                )}
               </div>
 
               <div className="field-group">
@@ -183,38 +286,56 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
                     type="date"
                     className="form-input"
                     value={formData.fechaDesembolso}
-                    onChange={(e) => setFormData({ ...formData, fechaDesembolso: e.target.value })}
+                    onChange={(e) => handleInputChange('fechaDesembolso', e.target.value)}
                   />
                 </div>
               </div>
 
               <div className="field-group">
-                <label>Fecha Primer Pago</label>
+                <label style={{ color: fieldErrors.fechaPrimerPago ? '#dc2626' : undefined, fontWeight: 500 }}>
+                  Fecha Primer Pago
+                </label>
                 <div className="input-group">
-                  <Calendar size={16} />
+                  <Calendar size={16} color={fieldErrors.fechaPrimerPago ? '#dc2626' : undefined} />
                   <input
                     type="date"
                     className="form-input"
                     value={formData.fechaPrimerPago}
-                    onChange={(e) => setFormData({ ...formData, fechaPrimerPago: e.target.value })}
+                    onChange={(e) => handleInputChange('fechaPrimerPago', e.target.value)}
+                    style={fieldErrors.fechaPrimerPago ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
                   />
                 </div>
+                {fieldErrors.fechaPrimerPago && (
+                  <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                    ❌ {fieldErrors.fechaPrimerPago}
+                  </span>
+                )}
               </div>
             </div>
 
             <div className="field-group" style={{ marginTop: '1.25rem' }}>
-              <label>Observaciones del Desembolso</label>
+              <label style={{ color: fieldErrors.observaciones ? '#dc2626' : undefined, fontWeight: 500 }}>
+                Observaciones del Desembolso
+              </label>
               <div className="input-group">
-                <FileText size={16} />
+                <FileText size={16} color={fieldErrors.observaciones ? '#dc2626' : undefined} />
                 <textarea
                   className="form-textarea"
                   rows="2"
                   placeholder="Detalles sobre entrega en efectivo, cuenta bancaria o condiciones especiales..."
                   value={formData.observaciones}
-                  onChange={(e) => setFormData({ ...formData, observaciones: e.target.value })}
-                  style={{ paddingLeft: '2.6rem' }}
+                  onChange={(e) => handleInputChange('observaciones', e.target.value)}
+                  style={{
+                    paddingLeft: '2.6rem',
+                    ...(fieldErrors.observaciones ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {})
+                  }}
                 />
               </div>
+              {fieldErrors.observaciones && (
+                <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
+                  ❌ {fieldErrors.observaciones}
+                </span>
+              )}
             </div>
           </div>
 
@@ -223,7 +344,7 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Procesando...' : 'Desembolsar Préstamo'}
+              {loading ? 'Procesando en la base de datos...' : 'Desembolsar Préstamo'}
             </button>
           </div>
         </form>

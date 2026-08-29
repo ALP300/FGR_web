@@ -1,13 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Phone, MapPin, Mail, CreditCard, Banknote, ToggleLeft } from 'lucide-react';
-import { clientesApi } from '../services/api';
+import { X, User, Phone, MapPin, Mail, CreditCard, Banknote, ToggleLeft, ShieldAlert, ShieldCheck, MessageSquare } from 'lucide-react';
+import { clientesApi, getWhatsAppLink } from '../services/api';
 
 export default function DetalleClienteModal({ isOpen, onClose, cliente, onActualizar }) {
   const [historial, setHistorial] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [estadoCrediticioState, setEstadoCrediticioState] = useState('Al día');
+
+  const [feedbackMsg, setFeedbackMsg] = useState(null);
 
   useEffect(() => {
     if (isOpen && cliente) {
+      setFeedbackMsg(null);
+      setEstadoCrediticioState(cliente.estadoCrediticio || 'Al día');
       loadHistorial();
     }
   }, [isOpen, cliente]);
@@ -31,8 +36,36 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
       if (onActualizar) onActualizar();
       onClose();
     } catch (err) {
-      alert('Error al cambiar el estado del cliente.');
+      setFeedbackMsg({ type: 'error', text: 'Error al cambiar el estado del cliente.' });
     }
+  };
+
+  const handleCambiarScore = async (nuevoEstadoCred) => {
+    try {
+      let nuevoScore = 'A';
+      if (nuevoEstadoCred === 'En mora') nuevoScore = 'C';
+      if (nuevoEstadoCred === 'Bloqueado') nuevoScore = 'D-';
+      
+      await clientesApi.patchScoreCrediticio(cliente.id, {
+        estadoCrediticio: nuevoEstadoCred,
+        scoreCrediticio: nuevoScore,
+        motivo: `Actualización manual de calificación a ${nuevoEstadoCred}`
+      });
+      setEstadoCrediticioState(nuevoEstadoCred);
+      setFeedbackMsg({ type: 'success', text: `Calificación actualizada a "${nuevoEstadoCred}" exitosamente.` });
+      if (onActualizar) onActualizar();
+      setTimeout(() => setFeedbackMsg(null), 3500);
+    } catch (err) {
+      setFeedbackMsg({ type: 'error', text: 'Error al actualizar calificación crediticia.' });
+    }
+  };
+
+  const handleWhatsApp = () => {
+    const nombre = cliente.nombreCompleto || `${cliente.nombres || ''} ${cliente.apellidos || ''}`.trim();
+    const mensaje = `Hola ${nombre}, le saludamos de *FGR Préstamos*.`;
+    const url = getWhatsAppLink(cliente.telefono, mensaje);
+    if (url) window.open(url, '_blank');
+    else window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank');
   };
 
   if (!isOpen || !cliente) return null;
@@ -41,16 +74,27 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
 
   return (
     <div className="modal-overlay">
-      <div className="modal-container" style={{ maxWidth: '750px' }}>
+      <div className="modal-container" style={{ maxWidth: '780px' }}>
         <div className="modal-header">
           <div>
             <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <User className="text-primary" size={22} />
               {nombreCliente}
             </h3>
-            <span className={`badge badge-${cliente.estado?.toLowerCase()}`} style={{ marginTop: '4px' }}>
-              {cliente.estado}
-            </span>
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '4px' }}>
+              <span className={`badge badge-${cliente.estado?.toLowerCase()}`}>
+                {cliente.estado}
+              </span>
+              <span className="badge" style={{
+                background: estadoCrediticioState === 'Bloqueado' ? '#fee2e2' : estadoCrediticioState === 'En mora' ? '#fef3c7' : '#dcfce7',
+                color: estadoCrediticioState === 'Bloqueado' ? '#dc2626' : estadoCrediticioState === 'En mora' ? '#d97706' : '#15803d',
+                borderColor: 'transparent',
+                fontWeight: 700
+              }}>
+                {estadoCrediticioState === 'Bloqueado' ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
+                Score: {estadoCrediticioState} ({cliente.scoreCrediticio || 'A'})
+              </span>
+            </div>
           </div>
           <button className="modal-close-btn" onClick={onClose}>
             <X size={20} />
@@ -58,15 +102,45 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
         </div>
 
         <div className="modal-body">
+          {feedbackMsg && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              background: feedbackMsg.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(5, 150, 105, 0.1)',
+              border: `1px solid ${feedbackMsg.type === 'error' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(5, 150, 105, 0.3)'}`,
+              borderRadius: '8px',
+              color: feedbackMsg.type === 'error' ? '#dc2626' : '#059669',
+              marginBottom: '1rem',
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              fontWeight: 500
+            }}>
+              <span>{feedbackMsg.type === 'error' ? '⚠️' : '✅'} {feedbackMsg.text}</span>
+            </div>
+          )}
+
           {/* Info grid */}
-          <div className="form-grid" style={{ background: '#f8fafc', padding: '1.1rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.5rem' }}>
+          <div className="form-grid" style={{ background: '#f8fafc', padding: '1.1rem', borderRadius: '12px', border: '1px solid #e2e8f0', marginBottom: '1.25rem' }}>
             <div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>DNI:</span>
               <div style={{ fontWeight: 700, color: 'var(--text-main)' }}>{cliente.dni}</div>
             </div>
             <div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Teléfono:</span>
-              <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{cliente.telefono || 'Sin registrar'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{cliente.telefono || 'Sin registrar'}</span>
+                {cliente.telefono && (
+                  <button
+                    className="btn btn-secondary btn-sm"
+                    onClick={handleWhatsApp}
+                    style={{ padding: '1px 6px', color: '#059669', borderColor: 'rgba(5, 150, 105, 0.3)' }}
+                    title="Enviar WhatsApp"
+                  >
+                    <MessageSquare size={12} />
+                  </button>
+                )}
+              </div>
             </div>
             <div>
               <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Correo:</span>
@@ -81,17 +155,60 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
               <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{cliente.contactoEmergencia || 'Sin registrar'}</div>
             </div>
             <div>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Observaciones:</span>
-              <div style={{ fontWeight: 600, color: 'var(--text-main)' }}>{cliente.observaciones || 'Sin observaciones'}</div>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 600 }}>Límite de Crédito:</span>
+              <div style={{ fontWeight: 700, color: 'var(--primary)' }}>S/. {parseFloat(cliente.limiteCredito || 3000).toFixed(2)}</div>
             </div>
           </div>
 
-          <h4 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
+          {/* Calificación y Bloqueo de Seguridad */}
+          <div style={{
+            background: '#ffffff',
+            border: '1px solid var(--border-color)',
+            borderRadius: '10px',
+            padding: '0.9rem',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '0.75rem'
+          }}>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-main)' }}>Calificación Crediticia del Cliente</div>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>Controle si el cliente califica para nuevos desembolsos o si debe bloquearse</div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <button
+                className={`btn btn-sm ${estadoCrediticioState === 'Al día' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => handleCambiarScore('Al día')}
+                style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+              >
+                Al día (Apto)
+              </button>
+              <button
+                className={`btn btn-sm ${estadoCrediticioState === 'En mora' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => handleCambiarScore('En mora')}
+                style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', background: estadoCrediticioState === 'En mora' ? '#f59e0b' : undefined, borderColor: '#f59e0b' }}
+              >
+                En mora
+              </button>
+              <button
+                className={`btn btn-sm ${estadoCrediticioState === 'Bloqueado' ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => handleCambiarScore('Bloqueado')}
+                style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem', background: estadoCrediticioState === 'Bloqueado' ? '#dc2626' : undefined, borderColor: '#dc2626' }}
+              >
+                Bloquear Cliente
+              </button>
+            </div>
+          </div>
+
+          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-main)' }}>
             <Banknote size={18} className="text-primary" />
             Historial de Préstamos del Cliente
           </h4>
 
-          <div className="table-responsive" style={{ maxHeight: '260px' }}>
+          <div className="table-responsive" style={{ maxHeight: '220px' }}>
             <table className="custom-table">
               <thead>
                 <tr>
@@ -136,10 +253,11 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
         <div className="modal-footer" style={{ justifyContent: 'space-between' }}>
           <button className="btn btn-secondary btn-sm" onClick={toggleEstado}>
             <ToggleLeft size={16} />
-            <span>Cambiar a {cliente.estado === 'Activo' ? 'Inactivo' : 'Activo'}</span>
+            <span>Marcar como {cliente.estado === 'Activo' ? 'Inactivo' : 'Activo'}</span>
           </button>
-          <button className="btn btn-primary btn-sm" onClick={onClose}>
-            <span>Cerrar</span>
+
+          <button className="btn btn-secondary" onClick={onClose}>
+            Cerrar Expediente
           </button>
         </div>
       </div>

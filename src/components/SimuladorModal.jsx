@@ -63,8 +63,8 @@ export default function SimuladorModal({ isOpen, onClose, onProcederPrestamo }) 
                   className="form-input"
                   value={monto}
                   onChange={(e) => setMonto(e.target.value)}
-                  min="50"
-                  step="50"
+                  min="1"
+                  step="any"
                 />
               </div>
             </div>
@@ -78,7 +78,8 @@ export default function SimuladorModal({ isOpen, onClose, onProcederPrestamo }) 
                   className="form-input"
                   value={tasaInteres}
                   onChange={(e) => setTasaInteres(e.target.value)}
-                  step="0.5"
+                  step="any"
+                  min="0"
                 />
               </div>
             </div>
