@@ -52,8 +52,14 @@ export default function CajaDiariaPage() {
     setLoading(true);
     try {
       const [estado, movs] = await Promise.all([
-        cajaApi.getEstadoCaja(),
-        cajaApi.getMovimientos()
+        cajaApi.getEstadoCaja().catch(err => {
+          console.warn('Estado de caja no disponible:', err);
+          return null;
+        }),
+        cajaApi.getMovimientos().catch(err => {
+          console.warn('Movimientos no disponibles:', err);
+          return [];
+        })
       ]);
       setEstadoCaja(estado);
       setMovimientos(movs || []);
@@ -192,7 +198,7 @@ export default function CajaDiariaPage() {
           </div>
 
           <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button className="btn btn-secondary" onClick={loadCajaInfo} title="Actualizar Datos" disabled={loading} style={{ padding: '0.5rem' }}>
+            <button className="btn btn-secondary" onClick={loadCaja} title="Actualizar Datos" disabled={loading} style={{ padding: '0.5rem' }}>
               <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
             </button>
             {estadoCaja?.cajaAbierta ? (

@@ -21,6 +21,7 @@ import NuevoPagoModal from './components/NuevoPagoModal';
 import ReciboPagoModal from './components/ReciboPagoModal';
 import RefinanciarModal from './components/RefinanciarModal';
 import ConfirmLogoutModal from './components/ConfirmLogoutModal';
+import ErrorBoundary from './components/ErrorBoundary';
 
 import { MOCK_USER } from './services/mockData';
 
@@ -171,75 +172,77 @@ export default function App() {
           onOpenMobileMenu={() => setIsMobileOpen(true)}
         />
 
-        {activeTab === 'dashboard' && (
-          <DashboardPage
-            user={user}
-            onOpenSimulador={() => setIsSimuladorOpen(true)}
-            onNuevoCliente={() => setIsNuevoClienteOpen(true)}
-            onNuevoPrestamo={() => setIsNuevoPrestamoOpen(true)}
-            onNuevoPago={() => setIsNuevoPagoOpen(true)}
-            onNavigateTab={handleNavigateTab}
-          />
-        )}
+        <ErrorBoundary key={activeTab} onReset={() => setActiveTab('dashboard')}>
+          {activeTab === 'dashboard' && (
+            <DashboardPage
+              user={user}
+              onOpenSimulador={() => setIsSimuladorOpen(true)}
+              onNuevoCliente={() => setIsNuevoClienteOpen(true)}
+              onNuevoPrestamo={() => setIsNuevoPrestamoOpen(true)}
+              onNuevoPago={() => setIsNuevoPagoOpen(true)}
+              onNavigateTab={handleNavigateTab}
+            />
+          )}
 
-        {activeTab === 'usuarios' && (
-          <UsuariosPage />
-        )}
+          {activeTab === 'usuarios' && (
+            <UsuariosPage />
+          )}
 
-        {activeTab === 'clientes' && (
-          <ClientesPage
-            onNuevoCliente={() => setIsNuevoClienteOpen(true)}
-          />
-        )}
+          {activeTab === 'clientes' && (
+            <ClientesPage
+              onNuevoCliente={() => setIsNuevoClienteOpen(true)}
+            />
+          )}
 
-        {activeTab === 'prestamos' && (
-          <PrestamosPage
-            highlightPrestamoId={highlightId}
-            onNuevoPrestamo={() => setIsNuevoPrestamoOpen(true)}
-            onOpenSimulador={() => setIsSimuladorOpen(true)}
-            onCobrarCuota={handleCobrarCuota}
-            onRefinanciar={handleRefinanciar}
-          />
-        )}
+          {activeTab === 'prestamos' && (
+            <PrestamosPage
+              highlightPrestamoId={highlightId}
+              onNuevoPrestamo={() => setIsNuevoPrestamoOpen(true)}
+              onOpenSimulador={() => setIsSimuladorOpen(true)}
+              onCobrarCuota={handleCobrarCuota}
+              onRefinanciar={handleRefinanciar}
+            />
+          )}
 
-        {activeTab === 'cuotas' && (
-          <CuotasCobranzaPage
-            onCobrarCuota={handleCobrarCuota}
-          />
-        )}
+          {activeTab === 'cuotas' && (
+            <CuotasCobranzaPage
+              onCobrarCuota={handleCobrarCuota}
+            />
+          )}
 
-        {activeTab === 'cartera-vencida' && (
-          <CarteraVencidaPage
-            highlightCuotaId={highlightId}
-            onCobrarCuota={handleCobrarCuota}
-            onRefinanciar={handleRefinanciar}
-          />
-        )}
+          {activeTab === 'cartera-vencida' && (
+            <CarteraVencidaPage
+              highlightCuotaId={highlightId}
+              onCobrarCuota={handleCobrarCuota}
+              onRefinanciar={handleRefinanciar}
+            />
+          )}
 
-        {activeTab === 'calendario' && (
-          <CalendarioPage
-            onCobrarCuota={handleCobrarCuota}
-            onNavigateTab={handleNavigateTab}
-          />
-        )}
+          {activeTab === 'calendario' && (
+            <CalendarioPage
+              onCobrarCuota={handleCobrarCuota}
+              onNavigateTab={handleNavigateTab}
+            />
+          )}
 
-        {activeTab === 'caja' && (
-          <CajaDiariaPage />
-        )}
+          {activeTab === 'caja' && (
+            <CajaDiariaPage />
+          )}
 
-        {activeTab === 'pagos' && (
-          <PagosPage
-            onNuevoPago={() => setIsNuevoPagoOpen(true)}
-          />
-        )}
+          {activeTab === 'pagos' && (
+            <PagosPage
+              onNuevoPago={() => setIsNuevoPagoOpen(true)}
+            />
+          )}
 
-        {activeTab === 'reportes' && (
-          <ReportesPage />
-        )}
+          {activeTab === 'reportes' && (
+            <ReportesPage />
+          )}
 
-        {activeTab === 'auditoria' && (
-          <AuditoriaPage />
-        )}
+          {activeTab === 'auditoria' && (
+            <AuditoriaPage />
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Modales Globales */}
