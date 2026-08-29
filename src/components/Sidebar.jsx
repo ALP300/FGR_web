@@ -1,4 +1,5 @@
 import React from 'react';
+import logoImg from '../assets/logo.png';
 import { 
   LayoutDashboard, 
   Users, 
@@ -39,15 +40,12 @@ export default function Sidebar({ activeTab, setActiveTab, user, onLogout, onOpe
 
       <aside className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
         <div className="brand-header">
-          <div className="brand-logo-icon">
-            <Banknote size={24} />
-          </div>
-          <div style={{ flex: 1 }}>
-            <div className="brand-title">FGR</div>
+          <div className="brand-identity">
+            <img src={logoImg} alt="FGR Préstamos & Cobranzas" className="brand-logo-img" />
             <div className="brand-subtitle">Préstamos & Cobranzas</div>
           </div>
           {/* Botón para cerrar drawer en móvil */}
-          <button className="sidebar-close-btn" onClick={onClose}>
+          <button className="sidebar-close-btn" onClick={onClose} aria-label="Cerrar menú">
             <X size={22} />
           </button>
         </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Banknote, User, Lock, Mail, ShieldCheck, ArrowRight } from 'lucide-react';
+import { User, Lock, Mail, ShieldCheck, ArrowRight } from 'lucide-react';
 import { authApi } from '../services/api';
+import logoImg from '../assets/logo.png';
 
 export default function LoginPage({ onLoginSuccess }) {
   const [isRegister, setIsRegister] = useState(false);
@@ -57,10 +58,10 @@ export default function LoginPage({ onLoginSuccess }) {
     <div className="auth-wrapper">
       <div className="auth-card">
         <div className="auth-header">
-          <div className="auth-brand-icon">
-            <Banknote size={32} />
+          <div className="auth-logo-wrapper">
+            <img src={logoImg} alt="FGR Préstamos & Cobranzas" className="auth-logo-img" />
           </div>
-          <h2 className="auth-title">FGR Préstamos</h2>
+          <h2 className="auth-title">Préstamos & Cobranzas</h2>
           <p className="auth-subtitle">Sistema de Gestión de Préstamos y Cobranzas</p>
         </div>
 
