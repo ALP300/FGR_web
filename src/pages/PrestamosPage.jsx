@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Banknote, Eye, Edit, Trash2, Calculator, Calendar, DollarSign, RefreshCw, AlertCircle } from 'lucide-react';
+import { Search, Banknote, Eye, Edit, Trash2, Calculator, Calendar, DollarSign, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react';
 import { prestamosApi } from '../services/api';
 import DetallePrestamoModal from '../components/DetallePrestamoModal';
 import NuevoPrestamoModal from '../components/NuevoPrestamoModal';
@@ -129,7 +129,7 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
               <option value="EnCurso">En Curso</option>
               <option value="Pendiente">Pendientes</option>
               <option value="Vencido">Vencidos</option>
-              <option value="Pagado">Pagados</option>
+              <option value="Pagado">Completados</option>
               <option value="Cancelado">Cancelados</option>
             </select>
 
@@ -211,7 +211,17 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                         Plazo Abierto
                       </td>
                       <td>
-                        <span className={`badge badge-${p.estado?.toLowerCase()}`}>{p.estado}</span>
+                        {(() => {
+                          const esCompletado = p.estado === 'Pagado' || (parseFloat(saldoCap || 0) <= 0 && p.estado !== 'Cancelado');
+                          const texto = esCompletado ? 'Completado' : p.estado === 'EnCurso' ? 'En Curso' : p.estado;
+                          const badgeClass = esCompletado ? 'badge-completado' : `badge-${p.estado?.toLowerCase()}`;
+                          return (
+                            <span className={`badge ${badgeClass}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                              {esCompletado && <CheckCircle size={12} />}
+                              {texto}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>

@@ -723,10 +723,17 @@ tr.highlighted-row td:last-child {
   white-space: nowrap;
 }
 
-.badge-activo, .badge-encurso, .badge-pagado {
+.badge-activo, .badge-encurso, .badge-pagado, .badge-completado {
   background: rgba(5, 150, 105, 0.12);
   color: #047857;
   border: 1px solid rgba(5, 150, 105, 0.3);
+}
+
+.badge-completado {
+  background: rgba(16, 185, 129, 0.16);
+  color: #065f46;
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  font-weight: 700;
 }
 
 .badge-pendiente {

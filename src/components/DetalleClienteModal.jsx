@@ -218,10 +218,10 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
               <thead>
                 <tr>
                   <th>Préstamo #</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Monto</th>
-                  <th>Modalidad</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Total Pagar</th>
-                  <th style={{ whiteSpace: 'nowrap' }}>Saldo Pendiente</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Capital Inicial</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Saldo Capital</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Interés Mes</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Interés Pendiente</th>
                   <th>Estado</th>
                 </tr>
               </thead>
@@ -235,20 +235,40 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
                     <td colSpan="6" style={{ textAlign: 'center', padding: '1.25rem', color: 'var(--text-muted)' }}>El cliente no posee préstamos registrados.</td>
                   </tr>
                 ) : (
-                  historial.prestamos.map(p => (
-                    <tr key={p.id}>
-                      <td style={{ whiteSpace: 'nowrap' }}><strong>Préstamo #{p.id}</strong></td>
-                      <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}>S/. {parseFloat(p.montoDispersado).toFixed(2)}</td>
-                      <td>{p.modalidadPago}</td>
-                      <td style={{ whiteSpace: 'nowrap', color: 'var(--accent-gold)', fontWeight: 600 }}>S/. {parseFloat(p.totalAPagar || 0).toFixed(2)}</td>
-                      <td style={{ whiteSpace: 'nowrap', color: (p.saldoPendienteTotal || 0) > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
-                        S/. {parseFloat(p.saldoPendienteTotal || 0).toFixed(2)}
-                      </td>
-                      <td>
-                        <span className={`badge badge-${p.estado?.toLowerCase()}`}>{p.estado}</span>
-                      </td>
-                    </tr>
-                  ))
+                  historial.prestamos.map(p => {
+                    const saldoCap = p.saldoCapital !== undefined ? p.saldoCapital : p.montoDispersado;
+                    const interesMes = p.interesMensualActual !== undefined 
+                      ? p.interesMensualActual 
+                      : (saldoCap * ((p.tasaInteres || 5) / 100));
+                    return (
+                      <tr key={p.id}>
+                        <td style={{ whiteSpace: 'nowrap' }}><strong>Préstamo #{p.id}</strong></td>
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 600 }}>S/. {parseFloat(p.montoDispersado).toFixed(2)}</td>
+                        <td style={{ whiteSpace: 'nowrap', fontWeight: 700, color: '#1e40af' }}>
+                          S/. {parseFloat(saldoCap).toFixed(2)}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap', color: 'var(--primary)', fontWeight: 600 }}>
+                          S/. {parseFloat(interesMes).toFixed(2)}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap', color: (p.saldoPendienteTotal || 0) > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
+                          S/. {parseFloat(p.saldoPendienteTotal || 0).toFixed(2)}
+                        </td>
+                        <td>
+                          {(() => {
+                            const esCompletado = p.estado === 'Pagado' || (parseFloat(saldoCap || 0) <= 0 && p.estado !== 'Cancelado');
+                            const texto = esCompletado ? 'Completado' : p.estado === 'EnCurso' ? 'En Curso' : p.estado;
+                            const badgeClass = esCompletado ? 'badge-completado' : `badge-${p.estado?.toLowerCase()}`;
+                            return (
+                              <span className={`badge ${badgeClass}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                {esCompletado && <CheckCircle size={11} />}
+                                {texto}
+                              </span>
+                            );
+                          })()}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
