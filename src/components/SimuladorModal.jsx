@@ -7,8 +7,6 @@ export default function SimuladorModal({ isOpen, onClose, onProcederPrestamo }) 
   const [fechaPrimerPago, setFechaPrimerPago] = useState(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]);
   const [amortizacionSimulada, setAmortizacionSimulada] = useState(500);
 
-  const SUGGESTED_MONTOS = [500, 1000, 1500, 2000, 2500, 3000, 4000, 5000];
-
   if (!isOpen) return null;
 
   const montoNum = parseFloat(monto) || 0;
@@ -36,33 +34,11 @@ export default function SimuladorModal({ isOpen, onClose, onProcederPrestamo }) 
         </div>
 
         <div className="modal-body">
-          {/* Montos Rápidos */}
+          {/* Monto a Prestar */}
           <div style={{ marginBottom: '1.25rem' }}>
             <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>
               Monto a Prestar (Mínimo S/. 500, en múltiplos de S/. 500):
             </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-              {SUGGESTED_MONTOS.map(m => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => setMonto(m)}
-                  style={{
-                    padding: '0.35rem 0.75rem',
-                    borderRadius: '6px',
-                    border: monto === m ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
-                    background: monto === m ? 'var(--primary-light)' : '#ffffff',
-                    color: monto === m ? 'var(--primary)' : 'var(--text-main)',
-                    fontWeight: monto === m ? 700 : 500,
-                    fontSize: '0.82rem',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
-                >
-                  S/. {m.toLocaleString('es-PE')}
-                </button>
-              ))}
-            </div>
 
             <div className="input-group">
               <DollarSign size={16} />

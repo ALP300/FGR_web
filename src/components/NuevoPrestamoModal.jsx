@@ -20,7 +20,6 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
 
-  const SUGGESTED_MONTOS = [500, 1000, 1500, 2000, 2500, 3000, 4000, 5000];
 
   useEffect(() => {
     if (isOpen) {
@@ -200,33 +199,11 @@ export default function NuevoPrestamoModal({ isOpen, onClose, initialData = null
               )}
             </div>
 
-            {/* Selector de Montos Rápidos */}
+            {/* Monto del Préstamo */}
             <div style={{ marginBottom: '1.25rem' }}>
               <label style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '0.4rem', display: 'block' }}>
                 Monto del Préstamo (Mínimo S/. 500, en múltiplos de S/. 500):
               </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                {SUGGESTED_MONTOS.map(m => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => handleInputChange('montoDispersado', m)}
-                    style={{
-                      padding: '0.35rem 0.75rem',
-                      borderRadius: '6px',
-                      border: formData.montoDispersado === m ? '1.5px solid var(--primary)' : '1px solid var(--border-color)',
-                      background: formData.montoDispersado === m ? 'var(--primary-light)' : '#ffffff',
-                      color: formData.montoDispersado === m ? 'var(--primary)' : 'var(--text-main)',
-                      fontWeight: formData.montoDispersado === m ? 700 : 500,
-                      fontSize: '0.82rem',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease'
-                    }}
-                  >
-                    S/. {m.toLocaleString('es-PE')}
-                  </button>
-                ))}
-              </div>
 
               <div className="input-group">
                 <DollarSign size={16} color={fieldErrors.montoDispersado ? '#dc2626' : undefined} />
