@@ -6,6 +6,7 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
   const [historial, setHistorial] = useState(null);
   const [loading, setLoading] = useState(false);
   const [estadoCrediticioState, setEstadoCrediticioState] = useState('Al día');
+  const [scoreCrediticioState, setScoreCrediticioState] = useState('A');
 
   const [feedbackMsg, setFeedbackMsg] = useState(null);
 
@@ -13,6 +14,7 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
     if (isOpen && cliente) {
       setFeedbackMsg(null);
       setEstadoCrediticioState(cliente.estadoCrediticio || 'Al día');
+      setScoreCrediticioState(cliente.scoreCrediticio || 'A');
       loadHistorial();
     }
   }, [isOpen, cliente]);
@@ -52,11 +54,14 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
         motivo: `Actualización manual de calificación a ${nuevoEstadoCred}`
       });
       setEstadoCrediticioState(nuevoEstadoCred);
+      setScoreCrediticioState(nuevoScore);
       setFeedbackMsg({ type: 'success', text: `Calificación actualizada a "${nuevoEstadoCred}" exitosamente.` });
       if (onActualizar) onActualizar();
       setTimeout(() => setFeedbackMsg(null), 3500);
     } catch (err) {
-      setFeedbackMsg({ type: 'error', text: 'Error al actualizar calificación crediticia.' });
+      console.error('Error al actualizar score crediticio:', err);
+      const msg = err?.response?.data?.mensaje || err?.message || 'Error al actualizar calificación crediticia.';
+      setFeedbackMsg({ type: 'error', text: msg });
     }
   };
 
@@ -92,7 +97,7 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
                 fontWeight: 700
               }}>
                 {estadoCrediticioState === 'Bloqueado' ? <ShieldAlert size={12} /> : <ShieldCheck size={12} />}
-                Score: {estadoCrediticioState} ({cliente.scoreCrediticio || 'A'})
+                Score: {estadoCrediticioState} ({scoreCrediticioState})
               </span>
             </div>
           </div>

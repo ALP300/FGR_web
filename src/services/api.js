@@ -58,6 +58,20 @@ export const clientesApi = {
     return res.data;
   },
 
+  deleteCliente: async (id) => {
+    try {
+      const res = await apiClient.delete(`/api/Clientes/${id}`);
+      return res.data;
+    } catch (err) {
+      if (err.response && (err.response.status === 405 || err.response.status === 404)) {
+        // En ASP.NET Core la baja de cliente se gestiona mediante actualización de estado a Inactivo
+        const res = await apiClient.patch(`/api/Clientes/${id}/estado`, null, { params: { nuevoEstado: 'Inactivo' } });
+        return res.data;
+      }
+      throw err;
+    }
+  },
+
   getHistorialCliente: async (id) => {
     const res = await apiClient.get(`/api/Clientes/${id}/historial`);
     return res.data;

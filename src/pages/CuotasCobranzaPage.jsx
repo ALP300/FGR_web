@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarClock, AlertTriangle, Clock, DollarSign, MessageSquare, RefreshCw } from 'lucide-react';
+import { CalendarClock, AlertTriangle, Clock, DollarSign, MessageSquare, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { cuotasApi, getWhatsAppLink } from '../services/api';
 
-export default function CuotasCobranzaPage({ onCobrarCuota }) {
+export default function CuotasCobranzaPage({ onCobrarCuota, refreshTrigger }) {
   const [tabActive, setTabActive] = useState('vencidas');
   const [cuotasVencidas, setCuotasVencidas] = useState([]);
   const [cuotasPorVencer, setCuotasPorVencer] = useState([]);
@@ -11,7 +11,7 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
 
   useEffect(() => {
     loadData();
-  }, [diasFiltro]);
+  }, [diasFiltro, refreshTrigger]);
 
   const loadData = async () => {
     setLoading(true);
@@ -54,38 +54,48 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
         <div className="panel-header" style={{ flexWrap: 'wrap', gap: '1rem' }}>
           <div className="panel-title">
             <CalendarClock className="text-primary" size={22} />
-            Módulo de Gestión de Cobranzas y Cuotas
+            Gestión de Cobranzas y Cuotas
           </div>
 
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
-            <button className="btn btn-secondary" onClick={loadData} title="Actualizar Datos" disabled={loading} style={{ padding: '0.5rem' }}>
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
-            </button>
-            <button
-              className={`btn ${tabActive === 'vencidas' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setTabActive('vencidas')}
-              style={{ background: tabActive === 'vencidas' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : undefined }}
-            >
-              <AlertTriangle size={15} />
-              Cuotas Vencidas ({cuotasVencidas.length})
-            </button>
+          <div className="tab-switcher-wrapper">
+            <div className="tab-switcher">
+              <button
+                type="button"
+                className={`tab-switcher-btn ${tabActive === 'vencidas' ? 'active-danger' : ''}`}
+                onClick={() => setTabActive('vencidas')}
+              >
+                <AlertTriangle size={15} />
+                <span>Vencidas ({cuotasVencidas.length})</span>
+              </button>
 
-            <button
-              className={`btn ${tabActive === 'por-vencer' ? 'btn-primary' : 'btn-secondary'}`}
-              onClick={() => setTabActive('por-vencer')}
+              <button
+                type="button"
+                className={`tab-switcher-btn ${tabActive === 'por-vencer' ? 'active-primary' : ''}`}
+                onClick={() => setTabActive('por-vencer')}
+              >
+                <Clock size={15} />
+                <span>Por Vencer ({cuotasPorVencer.length})</span>
+              </button>
+            </div>
+
+            <button 
+              className="btn btn-secondary btn-sm" 
+              onClick={loadData} 
+              title="Actualizar Datos" 
+              disabled={loading} 
+              style={{ padding: '0.55rem 0.7rem' }}
             >
-              <Clock size={15} />
-              Por Vencer ({cuotasPorVencer.length})
+              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
 
         {tabActive === 'por-vencer' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem', padding: '0.5rem 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem', padding: '0.5rem 0', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Mostrar cuotas a vencer en los próximos:</span>
             <select
               className="form-select no-icon"
-              style={{ width: '120px' }}
+              style={{ width: 'auto', minWidth: '110px' }}
               value={diasFiltro}
               onChange={(e) => setDiasFiltro(e.target.value)}
             >
@@ -97,33 +107,42 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
           </div>
         )}
 
-        <div className="table-responsive">
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>Período</th>
-                <th>Préstamo #</th>
-                <th>Cliente Titular</th>
-                <th style={{ whiteSpace: 'nowrap' }}>Fecha Vencimiento</th>
-                <th style={{ whiteSpace: 'nowrap' }}>Interés a Cobrar</th>
-                <th style={{ whiteSpace: 'nowrap' }}>Mora</th>
-                <th>Estado / Atraso</th>
-                <th>Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', color: 'var(--text-muted)' }}>
+            <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 0.75rem auto', color: 'var(--primary)' }} />
+            <p style={{ fontSize: '0.88rem' }}>Cargando información de cuotas...</p>
+          </div>
+        ) : currentList.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '3.5rem 1.5rem', background: '#f8fafc', borderRadius: '12px', border: '1px dashed #cbd5e1', margin: '0.5rem 0' }}>
+            <div style={{ width: 48, height: 48, borderRadius: '50%', background: '#ecfdf5', color: '#059669', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 0.75rem auto' }}>
+              <CheckCircle2 size={26} />
+            </div>
+            <h4 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-main)', marginBottom: '0.35rem' }}>
+              {tabActive === 'vencidas' ? '¡Excelente! No hay cuotas vencidas' : 'No hay cuotas próximas a vencer'}
+            </h4>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0, maxWidth: '420px', marginLeft: 'auto', marginRight: 'auto' }}>
+              {tabActive === 'vencidas' 
+                ? 'Todas las cuotas de tus clientes se encuentran puntuales y al día.' 
+                : `No se registran vencimientos programados dentro del rango de los próximos ${diasFiltro} días.`}
+            </p>
+          </div>
+        ) : (
+          <div className="table-responsive">
+            <table className="custom-table">
+              <thead>
                 <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Cargando información de cuotas...</td>
+                  <th>Período</th>
+                  <th>Préstamo #</th>
+                  <th>Cliente Titular</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Fecha Vencimiento</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Interés a Cobrar</th>
+                  <th style={{ whiteSpace: 'nowrap' }}>Mora</th>
+                  <th>Estado / Atraso</th>
+                  <th>Acciones</th>
                 </tr>
-              ) : currentList.length === 0 ? (
-                <tr>
-                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
-                    No hay cuotas registradas en esta categoría.
-                  </td>
-                </tr>
-              ) : (
-                currentList.map((c) => {
+              </thead>
+              <tbody>
+                {currentList.map((c) => {
                   const nombreCliente = c.nombreCliente || c.clienteNombre || '---';
                   const dniCliente = c.dniCliente || c.clienteDni || '';
                   const fechaFormat = c.fechaVencimiento?.split('T')[0] || c.fechaVencimiento;
@@ -175,11 +194,11 @@ export default function CuotasCobranzaPage({ onCobrarCuota }) {
                       </td>
                     </tr>
                   );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -13,7 +13,6 @@ import {
   CalendarCheck,
   ShieldAlert,
   FileSpreadsheet,
-  Bike,
   Filter,
   Shield
 } from 'lucide-react';
@@ -26,7 +25,8 @@ export default function DashboardPage({
   onNuevoCliente, 
   onNuevoPrestamo, 
   onNuevoPago,
-  onNavigateTab
+  onNavigateTab,
+  refreshTrigger
 }) {
   const [kpis, setKpis] = useState(null);
   const [graficos, setGraficos] = useState(null);
@@ -49,11 +49,11 @@ export default function DashboardPage({
         setCobradoresList(data || []);
       }).catch(err => console.warn('Error cargando lista de cobradores:', err));
     }
-  }, [isAdmin]);
+  }, [isAdmin, refreshTrigger]);
 
   useEffect(() => {
     loadDashboard(selectedCobradorId ? parseInt(selectedCobradorId) : null);
-  }, [selectedCobradorId]);
+  }, [selectedCobradorId, refreshTrigger]);
 
   const loadDashboard = async (cobradorId = null) => {
     setLoading(true);
@@ -86,24 +86,22 @@ export default function DashboardPage({
   const dineroRecuperado = kpis?.dineroRecuperado ?? kpis?.montoTotalCobrado ?? 0;
   const cuotasVencidasCant = kpis?.cuotasVencidasCount ?? cuotasVencidas.length ?? 0;
   const montoVencido = kpis?.montoVencido ?? cuotasVencidas.reduce((sum, c) => sum + (c.montoCuota || 0) + (c.interesMoratorio || 0), 0);
+  const MESES_DEFAULT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
-  const barChartData = (graficos?.pagosPorMes || graficos?.ingresosMensuales || [
-    { mes: "Marzo", monto: 4200 },
-    { mes: "Abril", monto: 5100 },
-    { mes: "Mayo", monto: 6300 },
-    { mes: "Junio", monto: 5800 },
-    { mes: "Julio", monto: 7200 },
-    { mes: "Agosto", monto: 2600 }
-  ]).map(d => ({
+  const rawMonthlyData = graficos?.pagosPorMes || graficos?.ingresosMensuales || [];
+  const barChartData = (rawMonthlyData.length > 0
+    ? rawMonthlyData
+    : MESES_DEFAULT.map(m => ({ mes: m, monto: 0 }))
+  ).map(d => ({
     mes: d.mes,
     ingresos: d.monto !== undefined ? d.monto : (d.ingresos || 0)
   }));
 
   const pieChartData = graficos?.estadoPrestamos || [
-    { name: "En Curso", value: totalPrestamosActivos || 2, color: "#059669" },
-    { name: "Pendiente", value: 1, color: "#2563eb" },
-    { name: "Pagado", value: 15, color: "#7c3aed" },
-    { name: "Vencido", value: cuotasVencidasCant || 2, color: "#dc2626" }
+    { name: "En Curso", value: totalPrestamosActivos || 0, color: "#059669" },
+    { name: "Pendiente", value: 0, color: "#2563eb" },
+    { name: "Pagado", value: 0, color: "#7c3aed" },
+    { name: "Vencido", value: cuotasVencidasCant || 0, color: "#dc2626" }
   ];
 
   return (
@@ -131,7 +129,7 @@ export default function DashboardPage({
               <option value="">🌐 Todas las Rutas (Consolidado General)</option>
               {cobradoresList.map(c => (
                 <option key={c.id} value={c.id}>
-                  🚴‍♂️ Ruta: {c.nombresApellidos || c.nombreUsuario} (@{c.nombreUsuario})
+                  👤 Ruta: {c.nombresApellidos || c.nombreUsuario} (@{c.nombreUsuario})
                 </option>
               ))}
             </select>
@@ -140,23 +138,13 @@ export default function DashboardPage({
       )}
 
       {!isAdmin && (
-        <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 mb-6 flex items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-3">
-            <span className="p-2.5 bg-emerald-100 text-emerald-700 rounded-xl">
-              <Bike className="w-5 h-5" />
-            </span>
-            <div>
-              <h3 className="text-sm font-bold text-emerald-900">
-                Prestamista: {user?.nombresApellidos || user?.nombreUsuario}
-              </h3>
-              <p className="text-xs text-emerald-700">
-                Mostrando únicamente tus clientes, préstamos y metas asignadas para hoy.
-              </p>
-            </div>
-          </div>
-          <span className="px-3 py-1 bg-emerald-200/80 text-emerald-900 font-semibold text-xs rounded-full">
-            Prestamista Activo
-          </span>
+        <div className="bg-emerald-50/70 border border-emerald-200/80 rounded-2xl p-4 mb-6 shadow-xs">
+          <h3 className="text-base font-bold text-emerald-900 mb-1">
+            {user?.nombresApellidos || user?.nombreUsuario}
+          </h3>
+          <p className="text-xs text-emerald-700">
+            Mostrando tus clientes, préstamos y metas para hoy.
+          </p>
         </div>
       )}
 
@@ -281,24 +269,48 @@ export default function DashboardPage({
       </div>
 
       {/* Charts Section */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.25rem', marginTop: '1.25rem' }}>
         {/* Recaudación Mensual Bar Chart */}
         <div className="card-panel">
-          <div className="panel-title" style={{ marginBottom: '1rem', fontSize: '1.05rem' }}>
-            Recaudación de Cobros Mensuales (S/.)
+          <div className="panel-title" style={{ marginBottom: '1rem', fontSize: '1.05rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>Recaudación de Cobros (S/.)</span>
+            <span style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted)' }}>Últimos 6 meses</span>
           </div>
           <div style={{ width: '100%', height: 260 }}>
-            <ResponsiveContainer>
-              <BarChart data={barChartData}>
-                <XAxis dataKey="mes" stroke="#64748b" fontSize={12} />
-                <YAxis stroke="#64748b" fontSize={12} />
-                <Tooltip 
-                  contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}
-                  formatter={(val) => [`S/. ${val}`, 'Cobrado']}
-                />
-                <Bar dataKey="ingresos" fill="#059669" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', fontSize: '0.85rem' }}>
+                Cargando datos...
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart 
+                  data={barChartData.length > 6 ? barChartData.slice(-6) : barChartData}
+                  margin={{ top: 10, right: 10, left: -22, bottom: 0 }}
+                >
+                  <XAxis 
+                    dataKey="mes" 
+                    stroke="#64748b" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={{ stroke: '#e2e8f0' }}
+                    interval={0}
+                  />
+                  <YAxis 
+                    stroke="#94a3b8" 
+                    fontSize={11} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    allowDecimals={false}
+                    tickFormatter={(val) => val >= 1000 ? `${(val / 1000).toFixed(0)}k` : val}
+                  />
+                  <Tooltip 
+                    contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)', fontSize: '0.82rem' }}
+                    formatter={(val) => [`S/. ${Number(val).toLocaleString('es-PE', { minimumFractionDigits: 2 })}`, 'Cobrado']}
+                  />
+                  <Bar dataKey="ingresos" fill="#059669" radius={[6, 6, 0, 0]} maxBarSize={36} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </div>
 
@@ -308,27 +320,41 @@ export default function DashboardPage({
             Distribución del Estado de Préstamos
           </div>
           <div style={{ width: '100%', height: 260 }}>
-            <ResponsiveContainer>
-              <PieChart>
-                <Pie
-                  data={pieChartData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={85}
-                  paddingAngle={4}
-                  dataKey="value"
-                >
-                  {pieChartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color || '#059669'} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            {loading ? (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#94a3b8', fontSize: '0.85rem' }}>
+                Cargando datos...
+              </div>
+            ) : (pieChartData.reduce((sum, item) => sum + (item.value || 0), 0) > 0) ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={pieChartData.filter(d => d.value > 0)}
+                    cx="50%"
+                    cy="45%"
+                    innerRadius={50}
+                    outerRadius={75}
+                    paddingAngle={4}
+                    dataKey="value"
+                  >
+                    {pieChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color || '#059669'} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '0.82rem' }}
+                  />
+                  <Legend verticalAlign="bottom" height={36} iconType="circle" wrapperStyle={{ fontSize: '0.78rem' }} />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>
+                <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#f8fafc', border: '1px dashed #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.6rem' }}>
+                  <Banknote size={22} style={{ color: '#94a3b8' }} />
+                </div>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-main)' }}>Sin Préstamos Registrados</span>
+                <span style={{ fontSize: '0.75rem', color: '#94a3b8', marginTop: '2px' }}>La gráfica se generará al registrar créditos</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

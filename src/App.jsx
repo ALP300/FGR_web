@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from './components/Sidebar';
 import TopHeader from './components/TopHeader';
 import DashboardPage from './pages/DashboardPage';
@@ -23,8 +23,6 @@ import RefinanciarModal from './components/RefinanciarModal';
 import ConfirmLogoutModal from './components/ConfirmLogoutModal';
 import ErrorBoundary from './components/ErrorBoundary';
 
-import { MOCK_USER } from './services/mockData';
-
 export default function App() {
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('fgr_user');
@@ -33,6 +31,9 @@ export default function App() {
   });
 
   const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('fgr_active_tab');
+    if (savedTab) return savedTab;
+
     const saved = localStorage.getItem('fgr_user');
     if (saved) {
       try {
@@ -43,11 +44,19 @@ export default function App() {
     }
     return 'dashboard';
   });
+
+  useEffect(() => {
+    if (activeTab) {
+      localStorage.setItem('fgr_active_tab', activeTab);
+    }
+  }, [activeTab]);
+
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [highlightId, setHighlightId] = useState(null);
 
   const handleNavigateTab = (tab, options = {}) => {
     setActiveTab(tab);
+    localStorage.setItem('fgr_active_tab', tab);
     setHighlightId(options.highlightPrestamoId || options.highlightCuotaId || null);
   };
 
@@ -70,20 +79,25 @@ export default function App() {
   const [prestamoInitialData, setPrestamoInitialData] = useState(null);
   const [cuotaInitialData, setCuotaInitialData] = useState(null);
 
+  // Trigger para recargar vistas automáticamente en segundo plano tras crear/editar datos
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const handleDataChanged = () => {
+    setRefreshTrigger(prev => prev + 1);
+  };
+
   const handleLoginSuccess = (userData) => {
     setUser(userData);
     localStorage.setItem('fgr_user', JSON.stringify(userData));
     const role = userData?.rol?.toString()?.toLowerCase();
-    if (role === 'admin' || role === '1') {
-      setActiveTab('usuarios');
-    } else {
-      setActiveTab('dashboard');
-    }
+    const defaultTab = (role === 'admin' || role === '1') ? 'usuarios' : 'dashboard';
+    const initialTab = localStorage.getItem('fgr_active_tab') || defaultTab;
+    setActiveTab(initialTab);
   };
 
   const handleLogout = () => {
     localStorage.removeItem('fgr_token');
     localStorage.removeItem('fgr_user');
+    localStorage.removeItem('fgr_active_tab');
     setUser(null);
     setIsLogoutModalOpen(false);
   };
@@ -115,7 +129,7 @@ export default function App() {
   const getPageInfo = () => {
     switch (activeTab) {
       case 'dashboard':
-        return { title: 'Dashboard General', subtitle: 'Resumen financiero, métricas de cartera y alertas de mora.' };
+        return { title: 'Dashboard General', subtitle: '' };
       case 'usuarios':
         return { title: 'Gestión de Prestamistas (SaaS)', subtitle: 'Administración de cuentas independientes, suscripciones y accesos.' };
       case 'clientes':
@@ -172,10 +186,11 @@ export default function App() {
           onOpenMobileMenu={() => setIsMobileOpen(true)}
         />
 
-        <ErrorBoundary key={activeTab} onReset={() => setActiveTab('dashboard')}>
+        <ErrorBoundary key={`${activeTab}_${refreshTrigger}`} onReset={() => setActiveTab('dashboard')}>
           {activeTab === 'dashboard' && (
             <DashboardPage
               user={user}
+              refreshTrigger={refreshTrigger}
               onOpenSimulador={() => setIsSimuladorOpen(true)}
               onNuevoCliente={() => setIsNuevoClienteOpen(true)}
               onNuevoPrestamo={() => setIsNuevoPrestamoOpen(true)}
@@ -190,12 +205,14 @@ export default function App() {
 
           {activeTab === 'clientes' && (
             <ClientesPage
+              refreshTrigger={refreshTrigger}
               onNuevoCliente={() => setIsNuevoClienteOpen(true)}
             />
           )}
 
           {activeTab === 'prestamos' && (
             <PrestamosPage
+              refreshTrigger={refreshTrigger}
               highlightPrestamoId={highlightId}
               onNuevoPrestamo={() => setIsNuevoPrestamoOpen(true)}
               onOpenSimulador={() => setIsSimuladorOpen(true)}
@@ -206,6 +223,7 @@ export default function App() {
 
           {activeTab === 'cuotas' && (
             <CuotasCobranzaPage
+              refreshTrigger={refreshTrigger}
               onCobrarCuota={handleCobrarCuota}
             />
           )}
@@ -255,19 +273,28 @@ export default function App() {
       <NuevoClienteModal
         isOpen={isNuevoClienteOpen}
         onClose={() => setIsNuevoClienteOpen(false)}
+        onClienteCreado={() => {
+          handleDataChanged();
+        }}
       />
 
       <NuevoPrestamoModal
         isOpen={isNuevoPrestamoOpen}
         onClose={() => setIsNuevoPrestamoOpen(false)}
         initialData={prestamoInitialData}
+        onPrestamoCreado={() => {
+          handleDataChanged();
+        }}
       />
 
       <NuevoPagoModal
         isOpen={isNuevoPagoOpen}
         onClose={() => setIsNuevoPagoOpen(false)}
         initialCuota={cuotaInitialData}
-        onPagoRegistrado={handlePagoRegistrado}
+        onPagoRegistrado={(res) => {
+          handlePagoRegistrado(res);
+          handleDataChanged();
+        }}
       />
 
       <ReciboPagoModal
@@ -281,6 +308,7 @@ export default function App() {
         onClose={() => setIsRefinanciarOpen(false)}
         prestamo={prestamoARefinanciar}
         onRefinanciado={() => {
+          handleDataChanged();
           setActiveTab('prestamos');
         }}
       />

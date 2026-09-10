@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { X, UserPlus, User, Phone, MapPin, Mail, CreditCard, Calendar, FileText, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, UserPlus, User, Phone, MapPin, Mail, CreditCard, Calendar, FileText, AlertCircle, Edit3 } from 'lucide-react';
 import { clientesApi } from '../services/api';
 import { extractApiErrorDetails } from '../services/errorHandler';
 
-export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) {
+export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado, clienteToEdit = null }) {
   const [formData, setFormData] = useState({
     dni: '',
     nombres: '',
@@ -13,11 +13,58 @@ export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) 
     fechaNacimiento: '1990-01-01',
     correo: '',
     contactoEmergencia: '',
-    observaciones: ''
+    observaciones: '',
+    estado: 'Activo'
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+
+  useEffect(() => {
+    if (isOpen) {
+      if (clienteToEdit) {
+        let nom = clienteToEdit.nombres || '';
+        let ape = clienteToEdit.apellidos || '';
+        if (!nom && clienteToEdit.nombreCompleto) {
+          const parts = clienteToEdit.nombreCompleto.trim().split(' ');
+          if (parts.length > 1) {
+            nom = parts.slice(0, -1).join(' ');
+            ape = parts[parts.length - 1];
+          } else {
+            nom = parts[0] || '';
+          }
+        }
+
+        setFormData({
+          dni: clienteToEdit.dni || '',
+          nombres: nom,
+          apellidos: ape,
+          telefono: clienteToEdit.telefono || '',
+          direccion: clienteToEdit.direccion || '',
+          fechaNacimiento: clienteToEdit.fechaNacimiento ? clienteToEdit.fechaNacimiento.split('T')[0] : '1990-01-01',
+          correo: clienteToEdit.correo || '',
+          contactoEmergencia: clienteToEdit.contactoEmergencia || '',
+          observaciones: clienteToEdit.observaciones || '',
+          estado: clienteToEdit.estado || 'Activo'
+        });
+      } else {
+        setFormData({
+          dni: '',
+          nombres: '',
+          apellidos: '',
+          telefono: '',
+          direccion: '',
+          fechaNacimiento: '1990-01-01',
+          correo: '',
+          contactoEmergencia: '',
+          observaciones: '',
+          estado: 'Activo'
+        });
+      }
+      setError('');
+      setFieldErrors({});
+    }
+  }, [isOpen, clienteToEdit]);
 
   if (!isOpen) return null;
 
@@ -80,25 +127,44 @@ export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) 
     setLoading(true);
 
     try {
-      // Formatear payload exactamente según ClienteCreateDto de ASP.NET Core C#
-      const payload = {
-        dni: formData.dni.trim(),
-        nombres: formData.nombres.trim(),
-        apellidos: formData.apellidos.trim(),
-        telefono: formData.telefono ? formData.telefono.trim() : '',
-        direccion: formData.direccion ? formData.direccion.trim() : '',
-        fechaNacimiento: formData.fechaNacimiento ? new Date(formData.fechaNacimiento).toISOString() : null,
-        correo: formData.correo ? formData.correo.trim() : '',
-        contactoEmergencia: formData.contactoEmergencia ? formData.contactoEmergencia.trim() : '',
-        observaciones: formData.observaciones ? formData.observaciones.trim() : ''
-      };
+      if (clienteToEdit && clienteToEdit.id) {
+        // Formatear payload para edición según ClienteUpdateDto de ASP.NET Core C#
+        const updatePayload = {
+          dni: formData.dni.trim(),
+          nombres: formData.nombres.trim(),
+          apellidos: formData.apellidos.trim(),
+          telefono: formData.telefono ? formData.telefono.trim() : '',
+          direccion: formData.direccion ? formData.direccion.trim() : '',
+          fechaNacimiento: formData.fechaNacimiento ? new Date(formData.fechaNacimiento).toISOString() : null,
+          correo: formData.correo ? formData.correo.trim() : '',
+          contactoEmergencia: formData.contactoEmergencia ? formData.contactoEmergencia.trim() : '',
+          observaciones: formData.observaciones ? formData.observaciones.trim() : '',
+          estado: formData.estado || 'Activo'
+        };
 
-      const nuevo = await clientesApi.createCliente(payload);
-      if (onClienteCreado) onClienteCreado(nuevo);
+        const actualizado = await clientesApi.updateCliente(clienteToEdit.id, updatePayload);
+        if (onClienteCreado) onClienteCreado(actualizado || { ...updatePayload, id: clienteToEdit.id });
+      } else {
+        // Formatear payload para creación según ClienteCreateDto
+        const createPayload = {
+          dni: formData.dni.trim(),
+          nombres: formData.nombres.trim(),
+          apellidos: formData.apellidos.trim(),
+          telefono: formData.telefono ? formData.telefono.trim() : '',
+          direccion: formData.direccion ? formData.direccion.trim() : '',
+          fechaNacimiento: formData.fechaNacimiento ? new Date(formData.fechaNacimiento).toISOString() : null,
+          correo: formData.correo ? formData.correo.trim() : '',
+          contactoEmergencia: formData.contactoEmergencia ? formData.contactoEmergencia.trim() : '',
+          observaciones: formData.observaciones ? formData.observaciones.trim() : ''
+        };
+
+        const nuevo = await clientesApi.createCliente(createPayload);
+        if (onClienteCreado) onClienteCreado(nuevo);
+      }
       onClose();
     } catch (err) {
-      console.error('Error al crear cliente:', err);
-      const details = extractApiErrorDetails(err, 'Error al registrar el cliente en el servidor.');
+      console.error('Error al procesar cliente:', err);
+      const details = extractApiErrorDetails(err, 'Error al procesar la solicitud del cliente en el servidor.');
       setError(details.message);
       setFieldErrors(details.fieldErrors || {});
     } finally {
@@ -123,8 +189,12 @@ export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) 
       <div className="modal-container">
         <div className="modal-header">
           <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <UserPlus className="text-primary" size={22} />
-            Registrar Nuevo Cliente
+            {clienteToEdit ? (
+              <Edit3 className="text-primary" size={22} />
+            ) : (
+              <UserPlus className="text-primary" size={22} />
+            )}
+            {clienteToEdit ? 'Editar Datos del Cliente' : 'Registrar Nuevo Cliente'}
           </h3>
           <button className="modal-close-btn" onClick={onClose}>
             <X size={20} />
@@ -167,7 +237,11 @@ export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) 
                     maxLength={8}
                     value={formData.dni}
                     onChange={(e) => handleInputChange('dni', e.target.value)}
-                    style={fieldErrors.dni ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
+                    style={
+                      fieldErrors.dni
+                        ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' }
+                        : {}
+                    }
                     required
                   />
                 </div>
@@ -339,16 +413,26 @@ export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) 
               <label style={{ color: fieldErrors.observaciones ? '#dc2626' : undefined, fontWeight: 500 }}>
                 Observaciones Crediticias
               </label>
-              <div className="input-group">
-                <FileText size={16} color={fieldErrors.observaciones ? '#dc2626' : undefined} />
+              <div className="input-group" style={{ position: 'relative' }}>
+                <FileText
+                  size={16}
+                  color={fieldErrors.observaciones ? '#dc2626' : undefined}
+                  style={{ position: 'absolute', top: '12px', left: '12px', pointerEvents: 'none' }}
+                />
                 <textarea
                   className="form-textarea"
-                  rows="2"
+                  rows={4}
                   placeholder="Detalles sobre negocio, aval o historial..."
                   value={formData.observaciones}
                   onChange={(e) => handleInputChange('observaciones', e.target.value)}
                   style={{
+                    minHeight: '110px',
                     paddingLeft: '2.6rem',
+                    paddingTop: '0.65rem',
+                    paddingBottom: '0.65rem',
+                    fontSize: '0.875rem',
+                    lineHeight: '1.5',
+                    resize: 'vertical',
                     ...(fieldErrors.observaciones ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {})
                   }}
                 />
@@ -359,6 +443,20 @@ export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) 
                 </span>
               )}
             </div>
+
+            {clienteToEdit && (
+              <div className="field-group" style={{ marginTop: '1.25rem' }}>
+                <label style={{ fontWeight: 500 }}>Estado del Cliente</label>
+                <select
+                  className="form-select no-icon"
+                  value={formData.estado || 'Activo'}
+                  onChange={(e) => handleInputChange('estado', e.target.value)}
+                >
+                  <option value="Activo">🟢 Activo</option>
+                  <option value="Inactivo">🔴 Inactivo</option>
+                </select>
+              </div>
+            )}
           </div>
 
           <div className="modal-footer">
@@ -366,7 +464,7 @@ export default function NuevoClienteModal({ isOpen, onClose, onClienteCreado }) 
               Cancelar
             </button>
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? 'Guardando en la base de datos...' : 'Guardar Cliente'}
+              {loading ? 'Guardando en la base de datos...' : clienteToEdit ? 'Guardar Cambios' : 'Guardar Cliente'}
             </button>
           </div>
         </form>

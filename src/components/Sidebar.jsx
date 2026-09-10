@@ -15,7 +15,6 @@ import {
   LogOut, 
   ShieldCheck,
   UserCheck,
-  Bike,
   X
 } from 'lucide-react';
 

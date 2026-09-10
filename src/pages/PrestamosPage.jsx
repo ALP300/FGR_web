@@ -3,7 +3,7 @@ import { Search, Banknote, Eye, Calculator, Calendar, DollarSign, RefreshCw } fr
 import { prestamosApi } from '../services/api';
 import DetallePrestamoModal from '../components/DetallePrestamoModal';
 
-export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobrarCuota, onRefinanciar, highlightPrestamoId }) {
+export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobrarCuota, onRefinanciar, highlightPrestamoId, refreshTrigger }) {
   const [prestamos, setPrestamos] = useState([]);
   const [estadoFiltro, setEstadoFiltro] = useState('');
   const [loading, setLoading] = useState(true);
@@ -14,7 +14,7 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
 
   useEffect(() => {
     loadPrestamos();
-  }, [estadoFiltro]);
+  }, [estadoFiltro, refreshTrigger]);
 
   useEffect(() => {
     if (highlightPrestamoId && !loading && prestamos.length > 0) {

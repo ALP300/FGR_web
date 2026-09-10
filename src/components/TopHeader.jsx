@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Banknote, UserPlus, Menu, Shield, Bike, UserCheck } from 'lucide-react';
+import { Plus, Banknote, UserPlus, Menu } from 'lucide-react';
 
 export default function TopHeader({ 
   title, 
@@ -25,19 +25,7 @@ export default function TopHeader({
         </button>
 
         <div className="page-title-group">
-          <div className="flex items-center gap-2">
-            <h1>{title}</h1>
-            {user && (
-              <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                isAdmin 
-                  ? 'bg-purple-50 text-purple-700 border border-purple-200' 
-                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-              }`}>
-                {isAdmin ? <Shield className="w-3 h-3" /> : <UserCheck className="w-3 h-3" />}
-                <span>{user?.rol || (isAdmin ? 'Admin' : 'Prestamista')}</span>
-              </span>
-            )}
-          </div>
+          <h1>{title}</h1>
           {subtitle && <p>{subtitle}</p>}
         </div>
       </div>

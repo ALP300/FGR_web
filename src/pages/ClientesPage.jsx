@@ -1,20 +1,36 @@
 import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Eye, Phone, MapPin, MessageSquare, ShieldAlert, ShieldCheck, Filter, RefreshCw } from 'lucide-react';
+import { Search, UserPlus, Eye, Phone, MapPin, MessageSquare, ShieldAlert, ShieldCheck, Filter, RefreshCw, Edit, Trash2, AlertCircle } from 'lucide-react';
 import { clientesApi, getWhatsAppLink } from '../services/api';
 import DetalleClienteModal from '../components/DetalleClienteModal';
+import NuevoClienteModal from '../components/NuevoClienteModal';
+import ConfirmModal from '../components/ConfirmModal';
+import ToastNotification from '../components/ToastNotification';
 
-export default function ClientesPage({ onNuevoCliente }) {
+export default function ClientesPage({ onNuevoCliente, refreshTrigger }) {
   const [clientes, setClientes] = useState([]);
   const [busqueda, setBusqueda] = useState('');
   const [estadoFiltro, setEstadoFiltro] = useState('');
   const [scoreFiltro, setScoreFiltro] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // Modales
   const [selectedCliente, setSelectedCliente] = useState(null);
   const [isDetalleOpen, setIsDetalleOpen] = useState(false);
 
+  // Edición
+  const [editingCliente, setEditingCliente] = useState(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // Eliminación
+  const [clienteAEliminar, setClienteAEliminar] = useState(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const [notification, setNotification] = useState(null);
+
   useEffect(() => {
     loadClientes();
-  }, [busqueda, estadoFiltro]);
+  }, [busqueda, estadoFiltro, refreshTrigger]);
 
   const loadClientes = async () => {
     setLoading(true);
@@ -31,6 +47,38 @@ export default function ClientesPage({ onNuevoCliente }) {
   const handleVerDetalle = (c) => {
     setSelectedCliente(c);
     setIsDetalleOpen(true);
+  };
+
+  const handleEditarCliente = (c) => {
+    setEditingCliente(c);
+    setIsEditOpen(true);
+  };
+
+  const handleConfirmEliminar = (c) => {
+    setClienteAEliminar(c);
+    setIsDeleteOpen(true);
+  };
+
+  const handleEjecutarEliminar = async () => {
+    if (!clienteAEliminar) return;
+    setIsDeleting(true);
+    try {
+      await clientesApi.deleteCliente(clienteAEliminar.id);
+      setNotification({
+        type: 'success',
+        message: `Cliente "${clienteAEliminar.nombres || clienteAEliminar.nombreCompleto}" desactivado/eliminado correctamente.`
+      });
+      setClientes(prev => prev.map(c => c.id === clienteAEliminar.id ? { ...c, estado: 'Inactivo' } : c));
+      setIsDeleteOpen(false);
+      setClienteAEliminar(null);
+      loadClientes();
+    } catch (err) {
+      console.error('Error al eliminar cliente:', err);
+      const errMsg = err?.response?.data?.mensaje || err?.message || 'No se pudo completar la eliminación del cliente.';
+      setNotification({ type: 'error', message: errMsg });
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const handleWhatsAppDirecto = (c) => {
@@ -176,13 +224,37 @@ export default function ClientesPage({ onNuevoCliente }) {
                         <span className={`badge badge-${c.estado?.toLowerCase()}`}>{c.estado}</span>
                       </td>
                       <td>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => handleVerDetalle(c)}
-                        >
-                          <Eye size={14} />
-                          Expediente
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'nowrap' }}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleVerDetalle(c)}
+                            title="Ver Expediente Completo"
+                            style={{ padding: '0.35rem 0.55rem' }}
+                          >
+                            <Eye size={13} />
+                            <span>Ver</span>
+                          </button>
+
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleEditarCliente(c)}
+                            title="Editar Datos del Cliente"
+                            style={{ color: '#2563eb', borderColor: 'rgba(37, 99, 235, 0.3)', padding: '0.35rem 0.55rem' }}
+                          >
+                            <Edit size={13} />
+                            <span>Editar</span>
+                          </button>
+
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleConfirmEliminar(c)}
+                            title="Eliminar Cliente"
+                            style={{ color: '#dc2626', borderColor: 'rgba(220, 38, 38, 0.3)', padding: '0.35rem 0.55rem' }}
+                          >
+                            <Trash2 size={13} />
+                            <span>Eliminar</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -193,12 +265,54 @@ export default function ClientesPage({ onNuevoCliente }) {
         </div>
       </div>
 
+      {/* Modal de Detalle / Expediente */}
       <DetalleClienteModal
         isOpen={isDetalleOpen}
         onClose={() => setIsDetalleOpen(false)}
         cliente={selectedCliente}
         onActualizar={loadClientes}
       />
+
+      {/* Modal de Editar Cliente */}
+      <NuevoClienteModal
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setEditingCliente(null);
+        }}
+        clienteToEdit={editingCliente}
+        onClienteCreado={(actualizado) => {
+          if (actualizado && actualizado.id) {
+            setClientes(prev => prev.map(c => c.id === actualizado.id ? { ...c, ...actualizado } : c));
+          }
+          loadClientes();
+          setNotification({ type: 'success', message: 'Datos del cliente actualizados correctamente.' });
+        }}
+      />
+
+      {/* Modal de Confirmación para Eliminar */}
+      <ConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          setIsDeleteOpen(false);
+          setClienteAEliminar(null);
+        }}
+        onConfirm={handleEjecutarEliminar}
+        title="¿Eliminar Cliente?"
+        message={`¿Estás seguro de que deseas eliminar permanentemente a "${clienteAEliminar?.nombres || clienteAEliminar?.nombreCompleto || 'este cliente'}" (DNI: ${clienteAEliminar?.dni})? Esta acción no se puede deshacer.`}
+        type="danger"
+        confirmText="Sí, Eliminar"
+        isLoading={isDeleting}
+      />
+
+      {/* Toast de Notificaciones */}
+      {notification && (
+        <ToastNotification
+          type={notification.type}
+          message={notification.message}
+          onClose={() => setNotification(null)}
+        />
+      )}
     </div>
   );
 }
