@@ -304,7 +304,7 @@ export default function UsuariosPage() {
                 <th>Capital Colocado</th>
                 <th>Recaudo Mes</th>
                 <th>Estado</th>
-                <th style={{ textAlign: 'right' }}>Acciones</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>

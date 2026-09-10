@@ -641,11 +641,12 @@ body {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  text-align: left;
+  text-align: center;
   font-size: 0.86rem;
   min-width: 700px;
 }
 
+table th,
 .custom-table th {
   padding: 0.85rem 1rem;
   background: #f1f5f9;
@@ -656,14 +657,24 @@ body {
   letter-spacing: 0.6px;
   border-bottom: 1px solid var(--border-color);
   white-space: nowrap;
+  text-align: center;
 }
 
+table td,
 .custom-table td {
   padding: 0.9rem 1rem;
   border-bottom: 1px solid var(--border-color);
   color: var(--text-main);
   background: #ffffff;
   vertical-align: middle;
+  text-align: center;
+}
+
+.custom-table td > div,
+.custom-table td div {
+  justify-content: center;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .custom-table tbody tr {

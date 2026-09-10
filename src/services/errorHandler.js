@@ -142,7 +142,17 @@ export function extractApiErrorDetails(err, defaultMsg = 'Ocurrió un error al p
 
       // Mensaje explícito devuelto por el backend en catch (new { mensaje = ex.Message })
       if (data.mensaje || data.message || data.title || data.detail) {
-        const backendMsg = data.mensaje || data.message || data.detail || data.title;
+        let backendMsg = data.mensaje || data.message || data.detail || data.title;
+
+        // Limpiar errores crudos de EF Core / PostgreSQL si llegaran sin transformar
+        if (typeof backendMsg === 'string') {
+          if (backendMsg.includes('IX_Clientes_Dni') || (backendMsg.includes('23505') && backendMsg.toLowerCase().includes('dni'))) {
+            backendMsg = 'El documento DNI ya se encuentra registrado con otro cliente en el sistema. Ingrese un DNI diferente.';
+          } else if (backendMsg.includes('An error occurred while saving the entity changes') || backendMsg.includes('inner exception')) {
+            backendMsg = 'No se pudo guardar la información: Uno de los datos ingresados (como el DNI) ya existe en el sistema o está duplicado.';
+          }
+        }
+
         result.message = `⚠️ ${backendMsg}`;
         result.errorList.push(backendMsg);
 
