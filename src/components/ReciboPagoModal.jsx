@@ -114,7 +114,7 @@ export default function ReciboPagoModal({ isOpen, onClose, pago }) {
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.5rem', fontSize: '1.15rem', fontWeight: 800, color: '#059669', paddingTop: '0.4rem', borderTop: '1px dotted #cbd5e1' }}>
                 <span>TOTAL ABONADO:</span>
-                <span>S/. {parseFloat(pago.monto).toFixed(2)}</span>
+                <span>S/. {(parseFloat(pago.montoInteres || 0) + parseFloat(pago.montoCapital || 0)).toFixed(2)}</span>
               </div>
             </div>
 

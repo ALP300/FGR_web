@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, Receipt, DollarSign, CreditCard, FileText, AlertTriangle, AlertCircle, TrendingDown, CheckCircle, Info } from 'lucide-react';
 import { prestamosApi, cuotasApi, pagosApi } from '../services/api';
 import { extractApiErrorDetails } from '../services/errorHandler';
@@ -24,6 +24,15 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, i
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+
+  // -- Buscador de préstamo --
+  const [prestamoSearch, setPrestamoSearch] = useState('');
+  const [prestamoDropdownOpen, setPrestamoDropdownOpen] = useState(false);
+  const [prestamoHighlight, setPrestamoHighlight] = useState(-1);
+  const prestamoListRef = useRef(null);
+  const prestamoWrapRef = useRef(null);
+  const prestamoInputRef = useRef(null);
+
 
   useEffect(() => {
     if (isOpen) {
@@ -93,7 +102,35 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, i
     }
   };
 
+  // Cerrar dropdown si se hace clic fuera
+  useEffect(() => {
+    const handleClick = (e) => {
+      if (
+        prestamoWrapRef.current && !prestamoWrapRef.current.contains(e.target)
+      ) {
+        setPrestamoDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => {
+      document.removeEventListener('mousedown', handleClick);
+    };
+  }, [prestamoDropdownOpen]);
+
+  // Sincronizar texto del buscador cuando prestamoId cambia externamente
+  useEffect(() => {
+    if (formData.prestamoId && prestamos.length > 0) {
+      const p = prestamos.find(px => px.id === parseInt(formData.prestamoId));
+      if (p) {
+        setPrestamoSearch(`Préstamo #${p.id} - ${p.clienteNombre || p.nombreCliente} (S/. ${parseFloat(p.saldoCapital || p.montoDispersado).toFixed(2)})`);
+      }
+    } else if (!formData.prestamoId) {
+      setPrestamoSearch('');
+    }
+  }, [formData.prestamoId, prestamos]);
+
   if (!isOpen) return null;
+
 
   const prestamoSeleccionado = prestamos.find(p => p.id === parseInt(formData.prestamoId));
   const saldoCapitalActual = prestamoSeleccionado ? (parseFloat(prestamoSeleccionado.saldoCapital || prestamoSeleccionado.montoDispersado) || 0) : 0;
@@ -241,35 +278,154 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, i
               </div>
             )}
 
-            {/* Selección de Préstamo */}
-            <div className="field-group" style={{ marginBottom: '1.25rem' }}>
+            {/* Selección de Préstamo — buscador con lista inline (sin solapamiento) */}
+            <div className="field-group" style={{ marginBottom: '1.25rem' }} ref={prestamoWrapRef}>
               <label style={{ color: fieldErrors.prestamoId ? '#dc2626' : undefined, fontWeight: 500 }}>
                 Seleccionar Préstamo *
               </label>
-              <select
-                className="form-select no-icon"
-                value={formData.prestamoId}
-                onChange={(e) => {
-                  const pid = e.target.value;
-                  handleInputChange('prestamoId', pid);
-                  loadCuotas(pid);
+
+              <input
+                ref={prestamoInputRef}
+                type="text"
+                className="form-input"
+                placeholder="🔍 Buscar préstamo por nombre o número..."
+                value={prestamoSearch}
+                autoComplete="off"
+                style={{
+                  ...(fieldErrors.prestamoId ? { borderColor: '#ef4444', backgroundColor: 'rgba(254,242,242,0.6)' } : {}),
+                  borderBottomLeftRadius: prestamoDropdownOpen ? '0' : undefined,
+                  borderBottomRightRadius: prestamoDropdownOpen ? '0' : undefined,
                 }}
-                style={fieldErrors.prestamoId ? { borderColor: '#ef4444', backgroundColor: 'rgba(254, 242, 242, 0.6)' } : {}}
-                required
-              >
-                <option value="">-- Seleccionar Préstamo --</option>
-                {prestamos.map(p => (
-                  <option key={p.id} value={p.id}>
-                    Préstamo #{p.id} - {p.clienteNombre || p.nombreCliente} (Saldo Capital: S/. {parseFloat(p.saldoCapital || p.montoDispersado).toFixed(2)})
-                  </option>
-                ))}
-              </select>
+                onFocus={() => { setPrestamoDropdownOpen(true); setPrestamoHighlight(-1); }}
+                onChange={(e) => {
+                  setPrestamoSearch(e.target.value);
+                  setPrestamoDropdownOpen(true);
+                  setPrestamoHighlight(-1);
+                  if (!e.target.value.trim()) {
+                    handleInputChange('prestamoId', '');
+                    setCuotas([]);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  const filtered = prestamos.filter(p => {
+                    const texto = `Préstamo #${p.id} ${p.clienteNombre || p.nombreCliente}`.toLowerCase();
+                    return texto.includes(prestamoSearch.toLowerCase());
+                  });
+                  if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    const next = Math.min(prestamoHighlight + 1, filtered.length - 1);
+                    setPrestamoHighlight(next);
+                    setPrestamoDropdownOpen(true);
+                    prestamoListRef.current?.children[next]?.scrollIntoView({ block: 'nearest' });
+                  } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    const prev = Math.max(prestamoHighlight - 1, 0);
+                    setPrestamoHighlight(prev);
+                    prestamoListRef.current?.children[prev]?.scrollIntoView({ block: 'nearest' });
+                  } else if (e.key === 'Enter') {
+                    e.preventDefault();
+                    if (prestamoHighlight >= 0 && filtered[prestamoHighlight]) {
+                      const p = filtered[prestamoHighlight];
+                      handleInputChange('prestamoId', p.id);
+                      setPrestamoSearch(`Préstamo #${p.id} - ${p.clienteNombre || p.nombreCliente} (S/. ${parseFloat(p.saldoCapital || p.montoDispersado).toFixed(2)})`);
+                      setPrestamoDropdownOpen(false);
+                      loadCuotas(p.id);
+                    }
+                  } else if (e.key === 'Escape') {
+                    setPrestamoDropdownOpen(false);
+                  }
+                }}
+              />
+
+              {/* Lista inline — se renderiza en el flujo normal, empuja el contenido, sin solapamiento */}
+              {prestamoDropdownOpen && (() => {
+                const filtered = prestamos.filter(p => {
+                  const texto = `Préstamo #${p.id} ${p.clienteNombre || p.nombreCliente}`.toLowerCase();
+                  return texto.includes(prestamoSearch.toLowerCase());
+                });
+                if (filtered.length === 0) return (
+                  <div style={{
+                    border: '1px solid var(--border-color)',
+                    borderTop: 'none',
+                    borderRadius: '0 0 8px 8px',
+                    padding: '0.75rem',
+                    fontSize: '0.83rem',
+                    color: 'var(--text-muted)',
+                    background: 'var(--card-bg)',
+                  }}>
+                    Sin resultados
+                  </div>
+                );
+                return (
+                  <ul
+                    ref={prestamoListRef}
+                    style={{
+                      border: '1px solid var(--border-color)',
+                      borderTop: 'none',
+                      borderRadius: '0 0 10px 10px',
+                      maxHeight: '200px',
+                      overflowY: 'auto',
+                      listStyle: 'none',
+                      margin: 0,
+                      padding: '0.3rem 0',
+                      background: 'var(--card-bg)',
+                      boxShadow: '0 6px 20px rgba(0,0,0,0.10)',
+                    }}
+                  >
+                    {filtered.map((p, idx) => {
+                      const isHighlighted = idx === prestamoHighlight;
+                      const isSelected = parseInt(formData.prestamoId) === p.id;
+                      return (
+                        <li
+                          key={p.id}
+                          onMouseEnter={() => setPrestamoHighlight(idx)}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleInputChange('prestamoId', p.id);
+                            setPrestamoSearch(`Préstamo #${p.id} - ${p.clienteNombre || p.nombreCliente} (S/. ${parseFloat(p.saldoCapital || p.montoDispersado).toFixed(2)})`);
+                            setPrestamoDropdownOpen(false);
+                            loadCuotas(p.id);
+                          }}
+                          style={{
+                            padding: '0.6rem 1rem',
+                            cursor: 'pointer',
+                            fontSize: '0.875rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                            background: isSelected
+                              ? 'rgba(16,185,129,0.12)'
+                              : isHighlighted
+                                ? 'var(--primary-light)'
+                                : 'transparent',
+                            color: isSelected ? '#059669' : isHighlighted ? 'var(--primary)' : 'var(--text-main)',
+                            fontWeight: isSelected || isHighlighted ? 600 : 400,
+                            borderLeft: isSelected
+                              ? '3px solid #059669'
+                              : isHighlighted
+                                ? '3px solid var(--primary)'
+                                : '3px solid transparent',
+                            transition: 'background 0.12s',
+                          }}
+                        >
+                          <span>Préstamo #{p.id} — {p.clienteNombre || p.nombreCliente}</span>
+                          <span style={{ fontSize: '0.75rem', opacity: 0.7 }}>
+                            Saldo Capital: S/. {parseFloat(p.saldoCapital || p.montoDispersado).toFixed(2)}
+                          </span>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                );
+              })()}
+
               {fieldErrors.prestamoId && (
                 <span style={{ color: '#dc2626', fontSize: '0.75rem', marginTop: '4px', display: 'block', fontWeight: 500 }}>
                   ❌ {fieldErrors.prestamoId}
                 </span>
               )}
             </div>
+
 
             {/* Tipo de Cobro */}
             <div style={{ marginBottom: '1.25rem' }}>
@@ -329,7 +485,7 @@ export default function NuevoPagoModal({ isOpen, onClose, initialCuota = null, i
                     transition: 'all 0.2s'
                   }}
                 >
-                  ✨ Interés + Capital
+                  Interés + Capital
                 </button>
               </div>
             </div>

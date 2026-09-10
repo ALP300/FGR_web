@@ -13,7 +13,10 @@ import {
   CheckCircle,
   X,
   AlertCircle,
-  RefreshCw
+  RefreshCw,
+  Pencil,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import { cajaApi } from '../services/api';
 import ConfirmModal from '../components/ConfirmModal';
@@ -40,6 +43,20 @@ export default function CajaDiariaPage() {
   // Modal de confirmación para cierre de caja
   const [isConfirmCerrarOpen, setIsConfirmCerrarOpen] = useState(false);
   const [isCerrando, setIsCerrando] = useState(false);
+
+  // Modales y estados para Editar y Eliminar Movimiento
+  const [movAEliminar, setMovAEliminar] = useState(null);
+  const [deletingMov, setDeletingMov] = useState(false);
+
+  const [movAEditar, setMovAEditar] = useState(null);
+  const [editMovForm, setEditMovForm] = useState({
+    tipo: 'Egreso',
+    categoria: 'Gasto Operativo',
+    concepto: '',
+    monto: '',
+    metodoPago: 'Efectivo'
+  });
+  const [savingMov, setSavingMov] = useState(false);
 
   // Toast / Notificaciones estilizadas
   const [notification, setNotification] = useState(null);
@@ -119,6 +136,60 @@ export default function CajaDiariaPage() {
       loadCaja();
     } catch (err) {
       setNotification({ type: 'error', message: 'Error al registrar el movimiento en caja.' });
+    }
+  };
+
+  // ── ACCIONES EDITAR / ELIMINAR MOVIMIENTO ───────────────────────
+  const openEditMov = (m) => {
+    setMovAEditar(m);
+    setEditMovForm({
+      tipo: m.tipo || 'Egreso',
+      categoria: m.categoria || 'Gasto Operativo',
+      concepto: m.concepto || '',
+      monto: m.monto ?? '',
+      metodoPago: m.metodoPago || 'Efectivo'
+    });
+  };
+
+  const handleEditMovSave = async (e) => {
+    if (e) e.preventDefault();
+    if (!movAEditar) return;
+    const montoVal = parseFloat(editMovForm.monto);
+    if (!editMovForm.concepto || isNaN(montoVal) || montoVal <= 0) {
+      setNotification({ type: 'warning', message: 'Por favor, ingrese un concepto y monto válido (mayor a 0).' });
+      return;
+    }
+
+    setSavingMov(true);
+    try {
+      await cajaApi.updateMovimiento(movAEditar.id, {
+        ...editMovForm,
+        monto: montoVal
+      });
+      setNotification({ type: 'success', message: 'Movimiento de caja actualizado correctamente.' });
+      setMovAEditar(null);
+      loadCaja();
+    } catch (err) {
+      console.error(err);
+      setNotification({ type: 'error', message: 'No se pudo actualizar el movimiento en caja.' });
+    } finally {
+      setSavingMov(false);
+    }
+  };
+
+  const handleDeleteMovConfirm = async () => {
+    if (!movAEliminar) return;
+    setDeletingMov(true);
+    try {
+      await cajaApi.deleteMovimiento(movAEliminar.id);
+      setNotification({ type: 'success', message: 'Movimiento de caja eliminado correctamente.' });
+      setMovAEliminar(null);
+      loadCaja();
+    } catch (err) {
+      console.error(err);
+      setNotification({ type: 'error', message: 'No se pudo eliminar el movimiento en caja.' });
+    } finally {
+      setDeletingMov(false);
     }
   };
 
@@ -237,16 +308,17 @@ export default function CajaDiariaPage() {
                 <th>Método</th>
                 <th style={{ whiteSpace: 'nowrap' }}>Monto (S/.)</th>
                 <th>Responsable</th>
+                <th style={{ textAlign: 'center', width: '90px' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem' }}>Cargando arqueo de caja...</td>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Cargando arqueo de caja...</td>
                 </tr>
               ) : movimientos.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                     No hay movimientos registrados en la caja.
                   </td>
                 </tr>
@@ -283,6 +355,29 @@ export default function CajaDiariaPage() {
                         {esIngreso ? '+' : '-'} S/. {parseFloat(m.monto).toFixed(2)}
                       </td>
                       <td style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>{m.usuario}</td>
+                      <td style={{ textAlign: 'center' }}>
+                        {m.tipo !== 'Apertura' && m.tipo !== 'Cierre' ? (
+                          <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => openEditMov(m)}
+                              title="Modificar Movimiento"
+                            >
+                              <Pencil size={14} />
+                            </button>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              onClick={() => setMovAEliminar(m)}
+                              title="Eliminar Movimiento"
+                              style={{ color: '#dc2626' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>—</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })
@@ -447,6 +542,154 @@ export default function CajaDiariaPage() {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   Registrar Movimiento
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Confirmar Eliminar Movimiento */}
+      {movAEliminar && (
+        <div className="modal-overlay">
+          <div className="modal-container" style={{ maxWidth: '440px' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#dc2626' }}>
+                <AlertTriangle size={20} /> Eliminar Movimiento
+              </h3>
+              <button className="modal-close-btn" onClick={() => setMovAEliminar(null)} disabled={deletingMov}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <p style={{ marginBottom: '0.75rem' }}>
+                ¿Está seguro que desea eliminar este movimiento de <strong>{movAEliminar.categoria}</strong> por un monto de <strong>S/. {parseFloat(movAEliminar.monto).toFixed(2)}</strong>?
+              </p>
+              {movAEliminar.concepto && (
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+                  Concepto: <em>"{movAEliminar.concepto}"</em>
+                </p>
+              )}
+              <div style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '0.75rem', fontSize: '0.85rem', color: '#dc2626' }}>
+                ⚠️ Esta acción <strong>no se puede deshacer</strong>. El balance de la caja se recalculará automáticamente.
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button className="btn btn-secondary" onClick={() => setMovAEliminar(null)} disabled={deletingMov}>
+                Cancelar
+              </button>
+              <button
+                className="btn btn-primary"
+                style={{ background: '#dc2626', borderColor: '#dc2626' }}
+                onClick={handleDeleteMovConfirm}
+                disabled={deletingMov}
+              >
+                {deletingMov ? 'Eliminando...' : 'Sí, Eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Modificar Movimiento */}
+      {movAEditar && (
+        <div className="modal-overlay">
+          <div className="modal-container" style={{ maxWidth: '500px' }}>
+            <div className="modal-header">
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Pencil className="text-primary" size={20} />
+                Modificar Movimiento
+              </h3>
+              <button className="modal-close-btn" onClick={() => setMovAEditar(null)} disabled={savingMov}>
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleEditMovSave}>
+              <div className="modal-body">
+                <div className="form-grid">
+                  <div className="field-group">
+                    <label>Tipo de Movimiento</label>
+                    <select
+                      className="form-select no-icon"
+                      value={editMovForm.tipo}
+                      onChange={(e) => setEditMovForm({ ...editMovForm, tipo: e.target.value })}
+                    >
+                      <option value="Egreso">Egreso / Gasto (-)</option>
+                      <option value="Ingreso">Ingreso Adicional (+)</option>
+                    </select>
+                  </div>
+
+                  <div className="field-group">
+                    <label>Categoría</label>
+                    <select
+                      className="form-select no-icon"
+                      value={editMovForm.categoria}
+                      onChange={(e) => setEditMovForm({ ...editMovForm, categoria: e.target.value })}
+                    >
+                      {!['Gasto Operativo', 'Inyección de Capital', 'Retiro de Ganancias', 'Cobro de Cuota', 'Desembolso Préstamo', 'Otro'].includes(editMovForm.categoria) && (
+                        <option value={editMovForm.categoria}>{editMovForm.categoria}</option>
+                      )}
+                      <option value="Gasto Operativo">Gasto Operativo (Gasolina, insumos)</option>
+                      <option value="Inyección de Capital">Inyección de Capital</option>
+                      <option value="Retiro de Ganancias">Retiro de Ganancias</option>
+                      <option value="Cobro de Cuota">Cobro de Cuota</option>
+                      <option value="Desembolso Préstamo">Desembolso Préstamo</option>
+                      <option value="Otro">Otro</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="field-group" style={{ marginBottom: '1rem' }}>
+                  <label>Concepto / Detalle *</label>
+                  <input
+                    type="text"
+                    className="form-input no-icon"
+                    placeholder="Detalle o justificación..."
+                    value={editMovForm.concepto}
+                    onChange={(e) => setEditMovForm({ ...editMovForm, concepto: e.target.value })}
+                    required
+                  />
+                </div>
+
+                <div className="form-grid">
+                  <div className="field-group">
+                    <label>Monto (S/.) *</label>
+                    <div className="input-group">
+                      <DollarSign size={16} />
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={editMovForm.monto}
+                        onChange={(e) => setEditMovForm({ ...editMovForm, monto: e.target.value })}
+                        step="any"
+                        min="0.01"
+                        placeholder="0.00"
+                        required
+                      />
+                    </div>
+                  </div>
+
+                  <div className="field-group">
+                    <label>Método de Pago</label>
+                    <select
+                      className="form-select no-icon"
+                      value={editMovForm.metodoPago}
+                      onChange={(e) => setEditMovForm({ ...editMovForm, metodoPago: e.target.value })}
+                    >
+                      <option value="Efectivo">Efectivo</option>
+                      <option value="Yape">Yape</option>
+                      <option value="Plin">Plin</option>
+                      <option value="Transferencia">Transferencia</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="btn btn-secondary" onClick={() => setMovAEditar(null)} disabled={savingMov}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn btn-primary" disabled={savingMov}>
+                  {savingMov ? 'Guardando...' : 'Guardar Cambios'}
                 </button>
               </div>
             </form>

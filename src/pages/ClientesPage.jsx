@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Search, UserPlus, Eye, Phone, MapPin, MessageSquare, ShieldAlert, ShieldCheck, Filter, RefreshCw, Edit, Trash2, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Search, UserPlus, Eye, Phone, MapPin, MessageSquare, ShieldAlert, ShieldCheck, Filter, RefreshCw, Edit, Trash2, AlertCircle, X } from 'lucide-react';
 import { clientesApi, getWhatsAppLink } from '../services/api';
 import DetalleClienteModal from '../components/DetalleClienteModal';
 import NuevoClienteModal from '../components/NuevoClienteModal';
@@ -12,6 +12,7 @@ export default function ClientesPage({ onNuevoCliente, refreshTrigger }) {
   const [estadoFiltro, setEstadoFiltro] = useState('');
   const [scoreFiltro, setScoreFiltro] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   
   // Modales
   const [selectedCliente, setSelectedCliente] = useState(null);
@@ -28,19 +29,25 @@ export default function ClientesPage({ onNuevoCliente, refreshTrigger }) {
 
   const [notification, setNotification] = useState(null);
 
+  // Carga inicial y por cambio de estado o refreshTrigger
   useEffect(() => {
-    loadClientes();
-  }, [busqueda, estadoFiltro, refreshTrigger]);
+    loadClientes(clientes.length === 0);
+  }, [estadoFiltro, refreshTrigger]);
 
-  const loadClientes = async () => {
-    setLoading(true);
+  const loadClientes = async (showFullLoading = false) => {
+    if (showFullLoading) {
+      setLoading(true);
+    } else {
+      setIsRefreshing(true);
+    }
     try {
-      const data = await clientesApi.getClientes(busqueda, estadoFiltro);
+      const data = await clientesApi.getClientes('', estadoFiltro);
       setClientes(data || []);
     } catch (err) {
       console.error('Error al cargar clientes:', err);
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -71,7 +78,7 @@ export default function ClientesPage({ onNuevoCliente, refreshTrigger }) {
       setClientes(prev => prev.map(c => c.id === clienteAEliminar.id ? { ...c, estado: 'Inactivo' } : c));
       setIsDeleteOpen(false);
       setClienteAEliminar(null);
-      loadClientes();
+      loadClientes(false);
     } catch (err) {
       console.error('Error al eliminar cliente:', err);
       const errMsg = err?.response?.data?.mensaje || err?.message || 'No se pudo completar la eliminación del cliente.';
@@ -92,10 +99,41 @@ export default function ClientesPage({ onNuevoCliente, refreshTrigger }) {
     }
   };
 
-  const clientesFiltrados = clientes.filter(c => {
-    if (!scoreFiltro) return true;
-    return (c.estadoCrediticio || 'Al día') === scoreFiltro;
-  });
+  // Filtrado instantáneo y ultra fluido en memoria (0ms de latencia, sin recargas de tabla)
+  const clientesFiltrados = useMemo(() => {
+    const term = busqueda.trim().toLowerCase();
+
+    return clientes.filter((c) => {
+      // Filtro por Estado
+      if (estadoFiltro && c.estado !== estadoFiltro) {
+        return false;
+      }
+
+      // Filtro por Score
+      if (scoreFiltro && (c.estadoCrediticio || 'Al día') !== scoreFiltro) {
+        return false;
+      }
+
+      // Filtro por Búsqueda de texto o números
+      if (term) {
+        const dni = (c.dni || '').toLowerCase();
+        const nombre = (c.nombreCompleto || `${c.nombres || ''} ${c.apellidos || ''}`).toLowerCase();
+        const telefono = (c.telefono || '').toLowerCase();
+        const direccion = (c.direccion || '').toLowerCase();
+        const correo = (c.correo || '').toLowerCase();
+
+        return (
+          dni.includes(term) ||
+          nombre.includes(term) ||
+          telefono.includes(term) ||
+          direccion.includes(term) ||
+          correo.includes(term)
+        );
+      }
+
+      return true;
+    });
+  }, [clientes, busqueda, estadoFiltro, scoreFiltro]);
 
   return (
     <div className="content-body">
@@ -104,15 +142,38 @@ export default function ClientesPage({ onNuevoCliente, refreshTrigger }) {
           <div className="panel-title">Directorio de Clientes & Scoring ({clientesFiltrados.length})</div>
 
           <div className="search-filter-bar">
-            <div className="input-group">
+            <div className="input-group" style={{ position: 'relative' }}>
               <Search size={16} />
               <input
                 type="text"
                 className="form-input"
-                placeholder="Buscar por DNI o Nombres..."
+                placeholder="Buscar por DNI, Nombres o Teléfono..."
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
+                style={{ paddingRight: busqueda ? '2rem' : undefined }}
               />
+              {busqueda && (
+                <button
+                  type="button"
+                  onClick={() => setBusqueda('')}
+                  title="Limpiar búsqueda"
+                  style={{
+                    position: 'absolute',
+                    right: '8px',
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    color: 'var(--text-muted)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    padding: '2px'
+                  }}
+                >
+                  <X size={14} />
+                </button>
+              )}
             </div>
 
             <select
@@ -136,8 +197,14 @@ export default function ClientesPage({ onNuevoCliente, refreshTrigger }) {
               <option value="Bloqueado">🔴 Bloqueado (D)</option>
             </select>
 
-            <button className="btn btn-secondary" onClick={loadClientes} title="Actualizar Datos" disabled={loading} style={{ padding: '0.5rem' }}>
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+            <button
+              className="btn btn-secondary"
+              onClick={() => loadClientes(false)}
+              title="Actualizar Datos"
+              disabled={loading || isRefreshing}
+              style={{ padding: '0.5rem' }}
+            >
+              <RefreshCw size={18} className={loading || isRefreshing ? 'animate-spin' : ''} />
             </button>
 
             <button className="btn btn-primary" onClick={onNuevoCliente}>

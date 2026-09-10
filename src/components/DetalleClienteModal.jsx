@@ -240,9 +240,9 @@ export default function DetalleClienteModal({ isOpen, onClose, cliente, onActual
                       <td style={{ whiteSpace: 'nowrap' }}><strong>Préstamo #{p.id}</strong></td>
                       <td style={{ whiteSpace: 'nowrap', fontWeight: 700 }}>S/. {parseFloat(p.montoDispersado).toFixed(2)}</td>
                       <td>{p.modalidadPago}</td>
-                      <td style={{ whiteSpace: 'nowrap', color: 'var(--accent-gold)', fontWeight: 600 }}>S/. {parseFloat(p.totalPagar).toFixed(2)}</td>
-                      <td style={{ whiteSpace: 'nowrap', color: p.saldoPendiente > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
-                        S/. {parseFloat(p.saldoPendiente).toFixed(2)}
+                      <td style={{ whiteSpace: 'nowrap', color: 'var(--accent-gold)', fontWeight: 600 }}>S/. {parseFloat(p.totalAPagar || 0).toFixed(2)}</td>
+                      <td style={{ whiteSpace: 'nowrap', color: (p.saldoPendienteTotal || 0) > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
+                        S/. {parseFloat(p.saldoPendienteTotal || 0).toFixed(2)}
                       </td>
                       <td>
                         <span className={`badge badge-${p.estado?.toLowerCase()}`}>{p.estado}</span>

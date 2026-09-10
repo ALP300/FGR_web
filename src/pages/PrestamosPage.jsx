@@ -1,14 +1,33 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Banknote, Eye, Calculator, Calendar, DollarSign, RefreshCw } from 'lucide-react';
+import { Search, Banknote, Eye, Edit, Trash2, Calculator, Calendar, DollarSign, RefreshCw, AlertCircle } from 'lucide-react';
 import { prestamosApi } from '../services/api';
 import DetallePrestamoModal from '../components/DetallePrestamoModal';
+import NuevoPrestamoModal from '../components/NuevoPrestamoModal';
+import ConfirmModal from '../components/ConfirmModal';
+import ToastNotification from '../components/ToastNotification';
 
 export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobrarCuota, onRefinanciar, highlightPrestamoId, refreshTrigger }) {
   const [prestamos, setPrestamos] = useState([]);
   const [estadoFiltro, setEstadoFiltro] = useState('');
   const [loading, setLoading] = useState(true);
+  
+  // Detalle Modal
   const [selectedPrestamo, setSelectedPrestamo] = useState(null);
   const [isDetalleOpen, setIsDetalleOpen] = useState(false);
+
+  // Edit Modal
+  const [prestamoAEditar, setPrestamoAEditar] = useState(null);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // Delete Modal
+  const [prestamoAEliminar, setPrestamoAEliminar] = useState(null);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+
+  // Toast
+  const [toast, setToast] = useState(null);
+
   const [activeHighlight, setActiveHighlight] = useState(null);
   const highlightTimer = useRef(null);
 
@@ -48,8 +67,54 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
     setIsDetalleOpen(true);
   };
 
+  const handleEditar = (p) => {
+    setPrestamoAEditar(p);
+    setIsEditOpen(true);
+  };
+
+  const handleEliminar = (p) => {
+    setPrestamoAEliminar(p);
+    setDeleteError('');
+    setIsDeleteOpen(true);
+  };
+
+  const handleConfirmEliminar = async () => {
+    if (!prestamoAEliminar) return;
+    setIsDeleting(true);
+    setDeleteError('');
+
+    try {
+      await prestamosApi.deletePrestamo(prestamoAEliminar.id);
+      setPrestamos(prev => prev.filter(p => p.id !== prestamoAEliminar.id));
+      setIsDeleteOpen(false);
+      const eliminadoId = prestamoAEliminar.id;
+      setPrestamoAEliminar(null);
+      setToast({
+        type: 'success',
+        message: `Préstamo #${eliminadoId} eliminado exitosamente.`
+      });
+      loadPrestamos();
+    } catch (err) {
+      console.error('Error al eliminar préstamo:', err);
+      const errorMsg = err.response?.data?.mensaje || err.response?.data?.message || 'No se pudo eliminar el préstamo. Verifique que no tenga pagos registrados.';
+      setDeleteError(errorMsg);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  const handlePrestamoGuardado = (updated) => {
+    setToast({
+      type: 'success',
+      message: `Préstamo #${updated.id} actualizado exitosamente.`
+    });
+    loadPrestamos();
+  };
+
   return (
     <div className="content-body">
+      <ToastNotification notification={toast} onClose={() => setToast(null)} />
+
       <div className="card-panel">
         <div className="panel-header" style={{ flexWrap: 'wrap', gap: '1rem' }}>
           <div className="panel-title">Cartera de Préstamos ({prestamos.length})</div>
@@ -94,19 +159,18 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                 <th style={{ whiteSpace: 'nowrap' }}>Saldo Capital</th>
                 <th>Tasa / Interés Mensual</th>
                 <th>Modalidad</th>
-                <th style={{ whiteSpace: 'nowrap' }}>Saldo Pendiente</th>
                 <th>Estado</th>
-                <th>Acciones</th>
+                <th style={{ textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem' }}>Cargando préstamos de la API...</td>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem' }}>Cargando préstamos de la API...</td>
                 </tr>
               ) : prestamos.length === 0 ? (
                 <tr>
-                  <td colSpan="9" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                  <td colSpan="8" style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                     No hay préstamos registrados con el estado seleccionado.
                   </td>
                 </tr>
@@ -116,7 +180,6 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                   const dniCliente = p.dniCliente || p.clienteDni || (p.cliente?.dni) || '';
                   const saldoCap = p.saldoCapital !== undefined ? p.saldoCapital : p.montoDispersado;
                   const interesMensual = p.interesMensualActual !== undefined ? p.interesMensualActual : Math.round((saldoCap * (p.tasaInteres / 100)) * 100) / 100;
-                  const saldoPendiente = p.saldoPendienteTotal !== undefined ? p.saldoPendienteTotal : (p.saldoPendiente !== undefined ? p.saldoPendiente : 0);
                   
                   const isHighlighted = activeHighlight != null && activeHighlight == p.id;
                   return (
@@ -147,34 +210,48 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
                       <td style={{ whiteSpace: 'nowrap', fontSize: '0.82rem' }}>
                         Plazo Abierto
                       </td>
-                      <td style={{ whiteSpace: 'nowrap', color: saldoPendiente > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
-                        S/. {parseFloat(saldoPendiente).toFixed(2)}
-                      </td>
                       <td>
                         <span className={`badge badge-${p.estado?.toLowerCase()}`}>{p.estado}</span>
                       </td>
                       <td>
-                        <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <div style={{ display: 'flex', gap: '0.35rem', justifyContent: 'center' }}>
                           <button
                             className="btn btn-secondary btn-sm"
                             onClick={() => handleVerCronograma(p)}
-                            title="Ver detalle e historial del préstamo"
+                            title="Ver Detalle"
+                            style={{ padding: '0.45rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                           >
-                            <Eye size={14} />
-                            Detalle
+                            <Eye size={15} />
+                          </button>
+
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleEditar(p)}
+                            title="Editar Préstamo"
+                            style={{ color: '#059669', borderColor: 'rgba(5, 150, 105, 0.3)', padding: '0.45rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Edit size={15} />
                           </button>
 
                           {(p.estado === 'EnCurso' || p.estado === 'Vencido') && (
                             <button
                               className="btn btn-secondary btn-sm"
                               onClick={() => onRefinanciar && onRefinanciar(p)}
-                              title="Refinanciar o Ampliar Préstamo"
-                              style={{ color: '#2563eb', borderColor: 'rgba(37, 99, 235, 0.3)' }}
+                              title="Refinanciar o Ampliar"
+                              style={{ color: '#2563eb', borderColor: 'rgba(37, 99, 235, 0.3)', padding: '0.45rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                             >
-                              <RefreshCw size={13} />
-                              Refinanciar
+                              <RefreshCw size={15} />
                             </button>
                           )}
+
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => handleEliminar(p)}
+                            title="Eliminar Préstamo"
+                            style={{ color: '#dc2626', borderColor: 'rgba(220, 38, 38, 0.3)', padding: '0.45rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          >
+                            <Trash2 size={15} />
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -186,6 +263,7 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
         </div>
       </div>
 
+      {/* Modal de Detalle */}
       <DetallePrestamoModal
         isOpen={isDetalleOpen}
         onClose={() => setIsDetalleOpen(false)}
@@ -193,6 +271,64 @@ export default function PrestamosPage({ onNuevoPrestamo, onOpenSimulador, onCobr
         onCobrarCuota={onCobrarCuota}
         onRefinanciar={onRefinanciar}
         onActualizar={loadPrestamos}
+      />
+
+      {/* Modal de Edición */}
+      <NuevoPrestamoModal
+        isOpen={isEditOpen}
+        onClose={() => {
+          setIsEditOpen(false);
+          setPrestamoAEditar(null);
+        }}
+        prestamoToEdit={prestamoAEditar}
+        onPrestamoActualizado={handlePrestamoGuardado}
+      />
+
+      {/* Modal de Confirmación de Eliminación */}
+      <ConfirmModal
+        isOpen={isDeleteOpen}
+        onClose={() => {
+          if (!isDeleting) {
+            setIsDeleteOpen(false);
+            setPrestamoAEliminar(null);
+            setDeleteError('');
+          }
+        }}
+        onConfirm={handleConfirmEliminar}
+        title={prestamoAEliminar ? `¿Eliminar Préstamo #${prestamoAEliminar.id}?` : '¿Eliminar Préstamo?'}
+        type="danger"
+        confirmText="Sí, Eliminar Préstamo"
+        cancelText="Cancelar"
+        isLoading={isDeleting}
+        message={
+          <div>
+            <p style={{ margin: '0 0 0.5rem 0' }}>
+              Esta acción eliminará permanentemente el préstamo y sus cuotas asociadas.
+            </p>
+            {deleteError && (
+              <div style={{
+                marginTop: '0.75rem',
+                padding: '0.65rem 0.85rem',
+                background: '#fef2f2',
+                border: '1px solid #fecaca',
+                borderRadius: '8px',
+                color: '#dc2626',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
+                <span>{deleteError}</span>
+              </div>
+            )}
+          </div>
+        }
+        highlightText={
+          prestamoAEliminar
+            ? `Cliente: ${prestamoAEliminar.nombreCliente || prestamoAEliminar.clienteNombre || 'Titular'} • Monto: S/. ${parseFloat(prestamoAEliminar.montoDispersado || 0).toFixed(2)}`
+            : null
+        }
       />
     </div>
   );

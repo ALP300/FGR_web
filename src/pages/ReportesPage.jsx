@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { 
   FileSpreadsheet, 
-  FileText, 
   Download, 
   Users, 
   Banknote, 
@@ -20,7 +19,7 @@ export default function ReportesPage() {
   const [notification, setNotification] = useState(null);
 
   const handleExport = async (tipo, formato) => {
-    setDownloading(tipo);
+    setDownloading(`${tipo}-${formato}`);
     try {
       let data = [];
       let filename = `Reporte_${tipo}`;
@@ -56,9 +55,12 @@ export default function ReportesPage() {
       if (formato === 'pdf') {
         window.print();
         setNotification({ type: 'success', message: 'Vista previa de impresión generada.' });
-      } else {
-        reportesApi.exportarSimulado(filename, data);
-        setNotification({ type: 'success', message: `Reporte "${filename}" descargado con éxito.` });
+      } else if (formato === 'excel') {
+        await reportesApi.exportarExcel(filename, data);
+        setNotification({ type: 'success', message: `Excel "${filename}.xlsx" descargado con éxito.` });
+      } else if (formato === 'csv') {
+        reportesApi.exportarCSV(filename, data);
+        setNotification({ type: 'success', message: `CSV "${filename}.csv" descargado con éxito.` });
       }
     } catch (err) {
       console.error(err);
@@ -138,13 +140,14 @@ export default function ReportesPage() {
         </div>
 
         <p style={{ color: 'var(--text-muted)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
-          Genere descargas instantáneas en formatos Excel (.xlsx), CSV o PDF para análisis contable, auditoría y control de cartera.
+          Genere descargas instantáneas en formatos Excel (.xlsx) y CSV para análisis contable, auditoría y control de cartera.
         </p>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '1.25rem' }}>
           {reportesConfig.map((rep) => {
             const Icon = rep.icon;
-            const isExp = downloading === rep.id;
+            const isExpExcel = downloading === `${rep.id}-excel`;
+            const isExpCsv = downloading === `${rep.id}-csv`;
             return (
               <div 
                 key={rep.id} 
@@ -176,31 +179,22 @@ export default function ReportesPage() {
                     className="btn btn-secondary btn-sm" 
                     style={{ flex: 1 }}
                     onClick={() => handleExport(rep.id, 'excel')}
-                    disabled={isExp}
+                    disabled={isExpExcel}
                   >
                     <FileSpreadsheet size={14} style={{ color: '#059669' }} />
-                    {isExp ? '...' : 'Excel'}
+                    {isExpExcel ? '...' : 'Excel'}
                   </button>
 
                   <button 
                     className="btn btn-secondary btn-sm" 
                     style={{ flex: 1 }}
                     onClick={() => handleExport(rep.id, 'csv')}
-                    disabled={isExp}
+                    disabled={isExpCsv}
                   >
                     <Download size={14} style={{ color: '#2563eb' }} />
-                    {isExp ? '...' : 'CSV'}
+                    {isExpCsv ? '...' : 'CSV'}
                   </button>
 
-                  <button 
-                    className="btn btn-secondary btn-sm" 
-                    style={{ flex: 1 }}
-                    onClick={() => handleExport(rep.id, 'pdf')}
-                    disabled={isExp}
-                  >
-                    <FileText size={14} style={{ color: '#dc2626' }} />
-                    {isExp ? '...' : 'PDF'}
-                  </button>
                 </div>
               </div>
             );
